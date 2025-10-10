@@ -1,7 +1,9 @@
+#!/usr/bin/env nextflow
+
 nextflow.enable.dsl=2
 
 // ---- Parameters ----
-params.samplesheet = "samplesheet.tsv"  
+params.samplesheet = "samplesheet.tsv"
 params.fastq_dir = "/archive/InternalMedicine/Chung_lab/shared/sc/dna_meth/25075-03-10022025_141321"
 params.outdir = "results"
 
@@ -23,21 +25,28 @@ workflow {
             def fq2 = file("${params.fastq_dir}/${sample_id}_*_R2_001.fastq.gz").first()
             tuple(sample_id, fq1, fq2)
         }
-        | TRIM_FASTQ
+        | TRIM_FASTQ     
 
     // Alignment and downstream
-    cutrun_bam_ch = trimmed_fastq_ch | CUTRUN_ALIGN | SORT_INDEX | MARKDUP 
+    // cutrun_bam_ch = trimmed_fastq_ch | CUTRUN_ALIGN | SORT_INDEX | MARKDUP 
+    cutrun_bam_ch = trimmed_fastq_ch | CUTRUN_ALIGN | SORT_INDEX 
 
     // Peak calling and bigWig
-    cutrun_bam_ch
-        | CALL_PEAKS
-        | PUBLISH_RESULTS
+    cutrun_peak_ch = cutrun_bam_ch | CALL_PEAKS 
+
+    bam_peak_ch = cutrun_bam_ch.join(cutrun_peak_ch)
+        .map { sample_id, tuple -> 
+        def bam_file = tuple[0]
+        def peak_file = tuple[1]
+        tuple(sample_id, bam_file, peak_file)
+    }
+
+    bam_peak_ch | BAM_BigWig
 
 }
 
 process TRIM_FASTQ {
     tag "${sample_id}"
-    publishDir "${params.outdir}/trimmed_fastq", mode: 'copy'
 
     input:
     tuple val(sample_id), path(R1), path(R2)
@@ -76,6 +85,7 @@ process CUTRUN_ALIGN {
     // publish per-sample alignments optionally (controlled later)
     script:
     """
+
     set -euo pipefail
 
     # load module if needed (uncomment in cluster)
@@ -101,20 +111,22 @@ process CUTRUN_ALIGN {
     """
 }
 
-                                                                                                                                                                                                        53,1          28%
 process SORT_INDEX {
     tag { sample_id }
     cpus 4
     memory 16.GB
 
+    publishDir "${params.outdir}/", mode: 'copy'
+
     input:
     tuple val(sample_id), path(bam)
 
     output:
-    tuple val(sample_id), path("${sample_id}.aligned.sorted.bam")
+    tuple val(sample_id), path("${sample_id}.aligned.sorted.bam"), path("${sample_id}.aligned.sorted.bam.bai")
 
     script:
     """
+    module load samtools/1.6
     samtools sort -@ ${task.cpus} -o ${sample_id}.aligned.sorted.bam ${bam}
     samtools index ${sample_id}.aligned.sorted.bam
     """
@@ -124,6 +136,8 @@ process MARKDUP {
     tag { sample_id }
     cpus 4
     memory 16.GB
+
+    publishDir "${params.outdir}/", mode: 'copy'
 
     input:
     tuple val(sample_id), path(sorted_bam)
@@ -193,7 +207,7 @@ process CALL_PEAKS {
     tuple val(sample_id), path(final_bam), path(final_bai)
 
     output:
-    tuple val(sample_id), path("${sample_id}_peaks.narrowPeak"), path("${sample_id}.bigwig")
+    tuple val(sample_id), path("${sample_id}_peaks.narrowPeak")
 
     publishDir "${params.outdir}/", mode: 'copy'
 
@@ -209,9 +223,6 @@ process CALL_PEAKS {
     # macs2 will create *_peaks.narrowPeak in macs2_out
     cp macs2_out/${sample_id}_peaks.narrowPeak ${sample_id}_peaks.narrowPeak
 
-    # create bigWig coverage using bamCoverage (deeptools)
-    # normalize to CPM
-    bamCoverage -b ${final_bam} -o ${sample_id}.bigwig --normalizeUsing CPM --binSize 10 -p ${task.cpus}
     """
 }
 
@@ -232,4 +243,41 @@ process PUBLISH_RESULTS {
     """
 }
 
-                                                                                                                                                                                                        235,0-1       Bot
+process BAM_BigWig {
+    input:
+    tuple val(sample_id), path(bam_file), path(peak_file)
+
+    output:
+    tuple val(sample_id), path("${sample_id}.bigwig")
+
+    publishDir "${params.outdir}/", mode: 'copy'
+
+    script:
+    """
+    # Count reads in peaks
+
+    module load deeptools/3.5.0
+
+    multiBamSummary BED-file \
+    -b ${bam_file} \
+    --BED ${peak_file} \
+    -o ${sample_id}.npz \
+    --outRawCounts ${sample_id}_read_counts.tab
+
+    # Total reads in peaks
+    total=\$(awk 'NR>1{for(i=2;i<=NF;i++) sum+=\$i} END{print sum}' ${sample_id}_read_counts.tab)
+
+    # Target library size (e.g., 10 million)
+    target=10000000
+
+    # Compute scale factor
+    sf=\$(awk -v t=\$target -v c=\$total 'BEGIN{printf "%.6f", t/c}')
+
+    # Generate normalized bigwig
+    bamCoverage -b ${bam_file} -o ${sample_id}.bigwig \
+    --scaleFactor \$sf --binSize 10 -p ${task.cpus}
+
+    echo "\$total" > ${sample_id}_total_reads.txt
+    """
+}
+
