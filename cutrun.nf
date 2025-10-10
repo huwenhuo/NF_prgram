@@ -34,12 +34,9 @@ workflow {
     // Peak calling and bigWig
     cutrun_peak_ch = cutrun_bam_ch | CALL_PEAKS 
 
-    bam_peak_ch = cutrun_bam_ch.join(cutrun_peak_ch)
-        .map { sample_id, tuple -> 
-        def bam_file = tuple[0]
-        def peak_file = tuple[1]
-        tuple(sample_id, bam_file, peak_file)
-    }
+
+    bam_peak_ch = cutrun_bam_ch
+    .join(cutrun_peak_ch)
 
     bam_peak_ch | BAM_BigWig
 
@@ -245,7 +242,7 @@ process PUBLISH_RESULTS {
 
 process BAM_BigWig {
     input:
-    tuple val(sample_id), path(bam_file), path(peak_file)
+    tuple val(sample_id), path(bam_file), path(bai_file), path(peak_file)
 
     output:
     tuple val(sample_id), path("${sample_id}.bigwig")
@@ -274,8 +271,7 @@ process BAM_BigWig {
     sf=\$(awk -v t=\$target -v c=\$total 'BEGIN{printf "%.6f", t/c}')
 
     # Generate normalized bigwig
-    bamCoverage -b ${bam_file} -o ${sample_id}.bigwig \
-    --scaleFactor \$sf --binSize 10 -p ${task.cpus}
+    bamCoverage -b ${bam_file} -o ${sample_id}.bigwig --scaleFactor \$sf --binSize 10 -p ${task.cpus}
 
     echo "\$total" > ${sample_id}_total_reads.txt
     """
