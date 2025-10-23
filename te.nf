@@ -129,7 +129,6 @@ process TECOUNT {
     singularity exec ${params.img_tecount} TEcount \
         --sortByPos --format BAM --mode multi \
         -b ${bam_file} \
-        -p ${tasks.cpus} \
         --GTF ${GTF_FILE} \
         --TE ${TE_GTF_FILE} \
         --project ${sample_id}.tecount
