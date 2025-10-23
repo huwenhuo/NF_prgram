@@ -32,15 +32,15 @@ process TRIM_FASTQ {
 
     script:
     """
-    fastp \\
-        -i ${R1} \\
-        -I ${R2} \\
-        -o ${sample_id}_R1.trimmed.fastq.gz \\
-        -O ${sample_id}_R2.trimmed.fastq.gz \\
-        --detect_adapter_for_pe \\
-        --length_required 36 \\
-        --thread 4 \\
-        --html ${sample_id}_fastp.html \\
+    fastp \
+        -i ${R1} \
+        -I ${R2} \
+        -o ${sample_id}_R1.trimmed.fastq.gz \
+        -O ${sample_id}_R2.trimmed.fastq.gz \
+        --detect_adapter_for_pe \
+        --length_required 36 \
+        --thread 4 \
+        --html ${sample_id}_fastp.html \
         --json ${sample_id}_fastp.json
     """
 }
@@ -48,6 +48,8 @@ process TRIM_FASTQ {
 
 process STAR_teALIGNMENT {
     tag "${sample_id}"
+
+    publishDir "${params.outdir}/${sample_id}/", mode: 'copy'
 
     // resource
     cpus = 16
@@ -62,29 +64,27 @@ process STAR_teALIGNMENT {
 
     script:
     """
-    module load star/2.7.2b
-    STAR --genomeDir ${selected_genome.star_index}  \\
-         --runThreadN ${task.cpus} \\
-         --outSAMtype BAM SortedByCoordinate \\
-         --outFilterMultimapNmax 1000 \\
-         --outSAMmultNmax 1 \\
-         --outFilterMismatchNmax 3 \\
-         --outMultimapperOrder Random \\
-         --winAnchorMultimapNmax 1000 \\
-         --alignEndsType EndToEnd \\
-         --alignIntronMax 1 \\
-         --alignMatesGapMax 350 \\
-         --quantMode TranscriptomeSAM \\
-         --readFilesIn ${R1_fastq} ${R2_fastq} \\
-         --readFilesCommand zcat \\
+    module load star/2.7.10b
+    STAR --genomeDir ${selected_genome.star_index}  \
+         --runThreadN ${task.cpus} \
+         --runMode alignReads \
+         --outSAMtype BAM SortedByCoordinate \
+         --outFilterMultimapNmax 1000 \
+         --outSAMmultNmax -1 \
+         --outFilterMismatchNoverLmax 0.06  \
+         --outMultimapperOrder Random \
+         --winAnchorMultimapNmax 1000 \
+         --alignTranscriptsPerReadNmax 1000 \
+         --alignMatesGapMax 350 \
+         --readFilesIn ${R1_fastq} ${R2_fastq} \
+         --readFilesCommand zcat \
          --outFileNamePrefix ${sample_id}_
     """
 }
 
-
 process STAR_ALIGNMENT {
     tag "${sample_id}"
-    publishDir "${params.outdir}/${sample_id}/", mode: 'copy'
+    //publishDir "${params.outdir}/${sample_id}/", mode: 'copy'
 
     // resource
     cpus = 16
@@ -99,9 +99,9 @@ process STAR_ALIGNMENT {
 
     script:
     """
-    module load star/2.7.2b
-    STAR --genomeDir ${selected_genome.star_index}  \\
-         --runThreadN ${task.cpus} \\
+    module load star/2.7.10b
+    STAR --genomeDir ${selected_genome.star_index}  \
+         --runThreadN ${task.cpus} \
          --outSAMtype BAM SortedByCoordinate \
          --outFilterMultimapNmax 10 \
          --outFilterMismatchNoverLmax 0.06  \
@@ -126,11 +126,12 @@ process TECOUNT {
     script:
     """
     module load singularity/default
-    singularity exec ${params.img_tecount} TEcount \\
-        --sortByPos --format BAM --mode multi \\
-        -b ${bam_file} \\
-        --GTF ${GTF_FILE} \\
-        --TE ${TE_GTF_FILE} \\
+    singularity exec ${params.img_tecount} TEcount \
+        --sortByPos --format BAM --mode multi \
+        -b ${bam_file} \
+        -p ${tasks.cpus} \
+        --GTF ${GTF_FILE} \
+        --TE ${TE_GTF_FILE} \
         --project ${sample_id}.tecount
     touch ${sample_id}.tecount.cntTable
     """
@@ -186,8 +187,8 @@ workflow {
     // ----------------------
     // Step 2a: STAR alignment for normal genes
     // ----------------------
-    star_gene_bam_ch = trimmed_fastq_ch
-        | STAR_ALIGNMENT   // STAR run with --quantMode GeneCounts and low multimapping
+    //star_gene_bam_ch = trimmed_fastq_ch
+    //    | STAR_ALIGNMENT   // STAR run with --quantMode GeneCounts and low multimapping
 
     // ----------------------
     // Step 2b: STAR alignment for TE counting
@@ -207,11 +208,11 @@ workflow {
     // ----------------------
     // Step 3: TElocal
     // ----------------------
-    star_te_bam_ch
-        .map { sample_id, bam ->
-            tuple(sample_id, bam, file(selected_genome.gtf), file(selected_genome.te_loc))
-        }
-        | TELOCAL
+    //star_te_bam_ch
+    //    .map { sample_id, bam ->
+    //        tuple(sample_id, bam, file(selected_genome.gtf), file(selected_genome.te_loc))
+    //    }
+    //    | TELOCAL
 
 
 }
