@@ -1,0 +1,5 @@
+Host n5
+    HostName nucleus.biohpc.swmed.edu
+    User s184335
+    RequestTTY yes
+    RemoteCommand bash --rcfile /work/InternalMedicine/s184335/sc/.bashrc -i
