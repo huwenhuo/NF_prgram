@@ -18,8 +18,8 @@ process TRIM_FASTQ {
     tag "${sample_id}"
 
     // resource
-    cpus = 4
-    memory = 20.GB
+    cpus = 2
+    memory = 10.GB
     time = 10.h
 
     input:
@@ -39,7 +39,7 @@ process TRIM_FASTQ {
         -O ${sample_id}_R2.trimmed.fastq.gz \
         --detect_adapter_for_pe \
         --length_required 36 \
-        --thread 4 \
+        --thread ${task.cpus} \
         --html ${sample_id}_fastp.html \
         --json ${sample_id}_fastp.json
     """
@@ -52,15 +52,15 @@ process STAR_teALIGNMENT {
     publishDir "${params.outdir}/${sample_id}/", mode: 'copy'
 
     // resource
-    cpus = 16
-    memory = 100.GB
+    cpus = 10
+    memory = 60.GB
     time = 10.h
 
     input:
     tuple val(sample_id), path(R1_fastq), path(R2_fastq)
 
     output:
-    tuple val(sample_id), path("${sample_id}_Aligned.sortedByCoord.out.bam")
+    tuple val(sample_id), path("${sample_id}_Aligned.sortedByCoord.out.bam"), path("${sample_id}_Aligned.sortedByCoord.out.bam.bai")
 
     script:
     """
@@ -79,6 +79,8 @@ process STAR_teALIGNMENT {
          --readFilesIn ${R1_fastq} ${R2_fastq} \
          --readFilesCommand zcat \
          --outFileNamePrefix ${sample_id}_
+    module load samtools/gcc/1.10
+    samtools index ${sample_id}_Aligned.sortedByCoord.out.bam
     """
 }
 
@@ -88,7 +90,7 @@ process STAR_ALIGNMENT {
 
     // resource
     cpus = 16
-    memory = 100.GB
+    memory = 50.GB
     time = 10.h
 
     input:
@@ -112,13 +114,17 @@ process STAR_ALIGNMENT {
     """
 }
 
-
 process TECOUNT {
     tag "${sample_id}"
     publishDir "${params.outdir}/${sample_id}/", mode: 'copy'
 
+    // resource
+    cpus = 2
+    memory = 20.GB
+    time = 20.h
+
     input:
-    tuple val(sample_id), path(bam_file), path(GTF_FILE), path(TE_GTF_FILE)
+    tuple val(sample_id), path(bam_file), path(bai_file), path(GTF_FILE), path(TE_GTF_FILE)
 
     output:
     tuple val(sample_id), path("${sample_id}.tecount.cntTable")
@@ -141,8 +147,13 @@ process TELOCAL {
     tag "${sample_id}"
     publishDir "${params.outdir}/${sample_id}/", mode: 'copy'
 
+    // resource
+    cpus = 2
+    memory = 30.GB
+    time = 20.h
+
     input:
-    tuple val(sample_id), path(bam_file), path(GTF_FILE), path(TE_loc_GTF_FILE)
+    tuple val(sample_id), path(bam_file), path(bai_file), path(GTF_FILE), path(TE_loc_GTF_FILE)
 
     output:
     tuple val(sample_id), path("${sample_id}.telocal.cntTable")
@@ -160,6 +171,68 @@ process TELOCAL {
 
     """
 }
+
+process SC_TELOCAL {
+    tag "${sample_id}"
+
+    publishDir "${params.outdir}/${sample_id}/", mode: 'copy'
+
+    // resource
+    cpus = 5
+    memory = 80.GB
+    time = 20.h
+
+    input:
+    tuple val(sample_id), path(bam), path(idx_file) 
+
+    output:
+    path "${sample_id}_scTE.csv", emit: scTE_dir
+
+    script:
+    """
+    module load samtools/gcc/1.10
+    scTE \
+        -i ${bam} \
+        -p ${task.cpus} \
+        -x ${idx_file} \
+        --hdf5 False \
+        -CB False \
+        -UMI False \
+        -o ${sample_id}_scTE
+    """
+}
+
+
+process SC_TE {
+    tag "${sample_id}"
+
+    publishDir "${params.outdir}/${sample_id}/", mode: 'copy'
+
+    // resource
+    cpus = 5
+    memory = 80.GB
+    time = 20.h
+
+    input:
+    tuple val(sample_id), path(bam), path(idx_file) 
+
+    output:
+    path "${sample_id}_scTE.csv", emit: scTE_dir
+
+    script:
+    """
+    module load samtools/gcc/1.10
+    scTE \
+        -i ${bam} \
+        -p ${task.cpus} \
+        -x ${idx_file} \
+        --hdf5 False \
+        -CB False \
+        -UMI False \
+        -o ${sample_id}_scTE
+    """
+}
+
 
 workflow {
 
@@ -187,7 +260,7 @@ workflow {
     // Step 2a: STAR alignment for normal genes
     // ----------------------
     //star_gene_bam_ch = trimmed_fastq_ch
-    //    | STAR_ALIGNMENT   // STAR run with --quantMode GeneCounts and low multimapping
+    //  | STAR_ALIGNMENT   // STAR run with --quantMode GeneCounts and low multimapping
 
     // ----------------------
     // Step 2b: STAR alignment for TE counting
@@ -199,19 +272,31 @@ workflow {
     // Step 3: TEcount
     // ----------------------
     star_te_bam_ch
-        .map { sample_id, bam ->
-            tuple(sample_id, bam, file(selected_genome.gtf), file(selected_genome.te_gtf))
+        .map { sample_id, bam, bai ->
+            tuple(sample_id, bam, bai, file(selected_genome.gtf), file(selected_genome.te_gtf))
         }
         | TECOUNT
+
+    star_te_bam_ch
+        .map { sample_id, bam, bai ->
+            tuple(sample_id, bam, file(selected_genome.scTE_idx))
+        }
+        | SC_TE
+
+    star_te_bam_ch
+        .map { sample_id, bam, bai ->
+            tuple(sample_id, bam, file(selected_genome.scTE_tx_idx))
+        }
+        | SC_TELOCAL
 
     // ----------------------
     // Step 3: TElocal
     // ----------------------
-    //star_te_bam_ch
-    //    .map { sample_id, bam ->
-    //        tuple(sample_id, bam, file(selected_genome.gtf), file(selected_genome.te_loc))
-    //    }
-    //    | TELOCAL
+    star_te_bam_ch
+        .map { sample_id, bam, bai ->
+            tuple(sample_id, bam, bai, file(selected_genome.gtf), file(selected_genome.te_loc))
+        }
+        | TELOCAL
 
 
 }
