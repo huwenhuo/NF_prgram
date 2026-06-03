@@ -1,0 +1,55 @@
+params {
+
+    test_mode = false
+    GDC_TOKEN = "/home/whu78/gdc-user-token.2024-11-13T04_56_35.590Z.txt"  // Set the path to your GDC token file
+    
+    sig_base = "/archive/InternalMedicine/Chung_lab/shared/sc/sig_image"
+    img_tecount = "${sig_base}/tetranscripts.sif" 
+    img_telocal = "${sig_base}/telocal_latest.sif" 
+    img_irfinder = "${sig_base}/IRFinder"
+    img_fastp = "${sig_base}/fastp-0.24.0.sif"
+
+    genomes = [
+        GRCh38: [
+	    star_index: "/archive/InternalMedicine/Chung_lab/shared/sc/genome/GRCh38_STAR", 
+            fasta: "/project/InternalMedicine/Chung_lab/shared/BenKroger/RefFolder/CellRanger/GRCh38/fasta/genome.fa", 
+            gtf: "/project/InternalMedicine/Chung_lab/shared/BenKroger/RefFolder/CellRanger/GRCh38/genes/genes.gtf.gz", 
+	    scTE_tx_idx: "/work/InternalMedicine/s184335/sc/workspace/sisi/scTE_genome_hsa/GRCh38_cellranger.exclusive.idx",
+	    scTE_idx: "/work/InternalMedicine/s184335/sc/workspace/sisi/scTE_genome_hsa/GRCh38_rmsk.exclusive.idx",
+	    irfinder_index: "/archive/InternalMedicine/Chung_lab/shared/sc/genome/GRCh38_IRFinder/"
+        ],
+        GRCh38_o: [
+	    star_index: "/project/InternalMedicine/Chung_lab/shared/BenKroger/RefFolder/hg38/StarIndex/", 
+            fasta: "/project/InternalMedicine/Chung_lab/shared/BenKroger/RefFolder/hg38/Homo_sapiens.GRCh38.dna.primary_assembly.fa", 
+            gtf: "/project/InternalMedicine/Chung_lab/shared/BenKroger/RefFolder/hg38/Homo_sapiens.GRCh38.110.gtf", 
+        ],
+        mm10: [
+	    star_index: "/archive/InternalMedicine/Chung_lab/shared/sc/genome/mm10_STAR",
+	    irfinder_index: "/archive/InternalMedicine/Chung_lab/shared/sc//genome/mm10_IRFInder", 
+	    bismark_index: "/archive/InternalMedicine/Chung_lab/shared/sc/genome/mm10_bismark", 
+            fasta: "/project/InternalMedicine/Chung_lab/shared/BenKroger/RefFolder/mm10/mm10.fa",
+            gtf: "/project/InternalMedicine/Chung_lab/shared/BenKroger/RefFolder/mm10/mm10.knownGene.gtf",
+            te_gtf: "/archive/InternalMedicine/Chung_lab/shared/sc/genome/mm10_rmsk_TE.gtf", 
+            te_loc: "/archive/InternalMedicine/Chung_lab/shared/sc/genome/mm10_rmsk_TE.gtf.locInd",
+	    scTE_idx: "/work/InternalMedicine/s184335/sc/workspace/sisi/scTE_genome/mm10.exclusive.idx",
+	    scTE_tx_idx: "/work/InternalMedicine/s184335/sc/workspace/sisi/scTE_genome/mm10_rmsk_tx_standard.inclusive.idx"
+        ]
+    ]
+
+    genome = "GRCh38"  
+
+}
+
+process {
+    executor = 'local'
+    cpus = 5
+    memory = 42.GB
+    errorStrategy = 'finish'
+    cleanup = true
+}
+
+executor {
+    cpus = 20
+    memory = 190.GB
+}
+
