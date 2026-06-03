@@ -201,7 +201,7 @@ process TELOCAL {
 
 process SC_TELOCAL {
     tag "${sample_id}"
-    publishDir "${params.outdir}/${sample_id}/", mode: 'copy'
+    publishDir "${params.outdir}/scte_count/", mode: 'copy'
 
     cpus = 2
     memory = 30.GB
@@ -215,8 +215,6 @@ process SC_TELOCAL {
 
     script:
     """
-    module load samtools/1.22.1
-
     scTE \
         -i ${bam} \
         -p ${task.cpus} \
@@ -243,8 +241,6 @@ process SC_TE {
 
     script:
     """
-    module load samtools/1.22.1
-    
     scTE \
         -i ${bam} \
         -p ${task.cpus} \
