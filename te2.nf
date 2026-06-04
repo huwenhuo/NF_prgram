@@ -50,7 +50,7 @@ process TRIM_FASTQ {
         R2_ABS=\$(readlink -f "${reads[1]}")
 
         singularity exec --bind /project,/archive,/home,/endosome,/work,\$PWD ${params.img_fastp} fastp \
-            -i \Professional \${R1_ABS} \
+            -i \${R1_ABS} \
             -I \${R2_ABS} \
             -o ${sample_id}_R1.trimmed.fastq.gz \
             -O ${sample_id}_R2.trimmed.fastq.gz \
