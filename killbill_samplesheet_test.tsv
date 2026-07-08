@@ -1,0 +1,4 @@
+gsm_id	sample_name	assay
+GSM2635065	CAPTURE-3C-seq_K562_sgHS1-rep1	3C-Seq
+GSM2635188	CAPTURE-ChIP-seq_K562_sgHS1-rep1	ChIP-Seq
+GSM2635259	RNA-seq_K562_FB-dCas9-BirA_sgGal4-rep1	RNA-Seq

@@ -1,0 +1,10 @@
+#!/bin/bash
+#SBATCH --job-name=killbill
+#SBATCH --output=logs/killbill.out
+
+module load Nextflow/25.04.6
+
+nextflow run killbill.nf \
+    -resume \
+    -w /home/wf268/project/wf268/workspace/killbill/work \
+    --samplesheet /home/wf268/project/wf268/repos/NF_prgram/killbill_samplesheet_test.tsv
