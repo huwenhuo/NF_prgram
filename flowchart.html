@@ -1,0 +1,93 @@
+<!--
+  ~ Copyright 2013-2024, Seqera Labs
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+<html>
+<head>
+<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1, maximum-scale=1">
+</head>
+<body>
+<pre class="mermaid" style="text-align: center;">
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'primaryColor': '#B6ECE2',
+      'primaryTextColor': '#160F26',
+      'primaryBorderColor': '#065647',
+      'lineColor': '#545555',
+      'clusterBkg': '#BABCBD22',
+      'clusterBorder': '#DDDEDE',
+      'fontFamily': 'arial'
+    }
+  }
+}%%
+flowchart TB
+    subgraph " "
+    v0["Channel.fromPath"]
+    end
+    v3(["DOWNLOAD_FASTQ"])
+    v5(["TRIM_FASTQ"])
+    v8(["ALIGN_RNA_STAR"])
+    v11(["ALIGN_DNA"])
+    v13(["MARK_DUPLICATES"])
+    v15(["FILTER_BAM"])
+    v17(["GENERATE_BIGWIG"])
+    subgraph " "
+    v18[" "]
+    v21[" "]
+    v31[" "]
+    end
+    v20(["MACS3_CALLPEAK_NoCONTROL"])
+    v23(["SAMTOOLS_FLAGSTAT_DNA"])
+    v25(["SAMTOOLS_FLAGSTAT_RNA"])
+    v30(["MULTIQC"])
+    v1(( ))
+    v4(( ))
+    v6(( ))
+    v9(( ))
+    v12(( ))
+    v14(( ))
+    v16(( ))
+    v0 --> v1
+    v1 --> v3
+    v3 --> v4
+    v4 --> v5
+    v5 --> v6
+    v6 --> v8
+    v8 --> v9
+    v6 --> v11
+    v11 --> v12
+    v12 --> v13
+    v13 --> v14
+    v14 --> v15
+    v15 --> v16
+    v16 --> v17
+    v17 --> v18
+    v16 --> v20
+    v20 --> v21
+    v16 --> v23
+    v23 --> v14
+    v9 --> v25
+    v25 --> v14
+    v14 --> v30
+    v30 --> v31
+
+</pre>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, maxTextSize: Number.MAX_SAFE_INTEGER, maxEdges: Number.MAX_SAFE_INTEGER });
+</script>
+</body>
+</html>

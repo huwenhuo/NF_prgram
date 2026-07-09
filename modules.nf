@@ -1,218 +1,177 @@
 process DOWNLOAD_FASTQ {
-    tag "${gsm_id}"
+    tag "${meta.gsm_id}"
     
     input:
-    val gsm_id
+    val meta
 
     output:
-    tuple val(gsm_id), path("${gsm_id}*.fastq.gz", arity: '1..*')
+    tuple val(meta), path("${meta.gsm_id}*_?.fastq.gz", arity: '1..*')
 
     script:
     """
     # 1. Retrieve the SRR ID
-    SRR_ID=\$(esearch -db sra -query "${gsm_id}" | efetch -format runinfo | grep "SRR" | cut -d',' -f1 | head -n 1)
+    SRR_ID=\$(esearch -db sra -query "${meta.gsm_id}" | efetch -format runinfo | grep "SRR" | cut -d',' -f1 | head -n 1)
     
-    # 2. Prefetch the data (Robust download)
+    # 2. Prefetch the data 
     prefetch \$SRR_ID
     
-    # 3. Extract using the local folder (More reliable than web streaming)
-    fasterq-dump --split-3 --include-technical --threads 4 \$SRR_ID/\$SRR_ID.sra
-    
-    # 4. Rename files
-    for file in \$SRR_ID*; do
+    # 3. Extract using fasterq-dump
+    fasterq-dump --split-3 --include-technical --threads 4 \$SRR_ID
+
+    # 4. Count how many fastq files were generated before renaming
+    file_count=\$(ls \${SRR_ID}*.fastq 2>/dev/null | wc -l)
+
+    # 5. Rename files from SRR ID to GSM ID
+    for file in \${SRR_ID}*.fastq; do
         suffix=\${file#\$SRR_ID}
-        mv "\$file" "${gsm_id}\${suffix}"
+        mv "\$file" "${meta.gsm_id}\${suffix}"
     done
     
-    # 5. Gzip the files
-    gzip ${gsm_id}*.fastq
+    # 6. Safety handling based on file count
+    if [ "\$file_count" -eq 1 ]; then
+        # True Single-End: rename gsm_id.fastq to gsm_id_1.fastq
+        if [ -f "${meta.gsm_id}.fastq" ]; then
+            mv "${meta.gsm_id}.fastq" "${meta.gsm_id}_1.fastq"
+        fi
+    elif [ -f "${meta.gsm_id}.fastq" ]; then
+        # Paired-End with unmatched reads: isolate the singletons so they don't break downstream patterns
+        mv "${meta.gsm_id}.fastq" "${meta.gsm_id}_unmatched.fastq"
+    fi
+    
+    # 7. Gzip only the biological reads we want to capture (_1, _2, _3)
+    gzip ${meta.gsm_id}_*.fastq
     """
 }
 
-process TRIM_FASTQ_PE {
-    tag { gsm_id }
+process TRIM_FASTQ {
+    tag { meta.gsm_id }
     cpus 4
     memory 8.GB
 
     input:
-    tuple val(gsm_id), path(reads)
+    val meta
 
     output:
-    tuple val(gsm_id), path("${gsm_id}_R1.trimmed.fastq.gz"), path("${gsm_id}_R2.trimmed.fastq.gz")
+    tuple val(meta), path("*.trimmed.fastq.gz")
 
     script:
-    """
-    fastp \
-        -i ${reads[0]} -I ${reads[1]} \
-        -o ${gsm_id}_R1.trimmed.fastq.gz -O ${gsm_id}_R2.trimmed.fastq.gz \
-        --disable_quality_filtering \
-        --length_required 20 \
-        --detect_adapter_for_pe \
-        --thread ${task.cpus} \
-        --html ${gsm_id}_fastp.html \
-        --json ${gsm_id}_fastp.json
-    """
+    if (meta.mode == "PE") {
+        """
+        fastp \
+            -i ${meta.r1} -I ${meta.r2} \
+            -o ${meta.gsm_id}_R1.trimmed.fastq.gz -O ${meta.gsm_id}_R2.trimmed.fastq.gz \
+            --disable_quality_filtering --length_required 20 --detect_adapter_for_pe \
+            --thread ${task.cpus} \
+            --html ${meta.gsm_id}_fastp.html --json ${meta.gsm_id}_fastp.json
+        """
+    } else {
+        """
+        fastp \
+            -i ${meta.r1} \
+            -o ${meta.gsm_id}_R1.trimmed.fastq.gz \
+            --disable_quality_filtering --length_required 20 \
+            --thread ${task.cpus} \
+            --html ${meta.gsm_id}_fastp.html --json ${meta.gsm_id}_fastp.json
+        """
+    }
 }
 
-process TRIM_FASTQ_SE {
-    tag { gsm_id }
-    cpus 4
-    memory 8.GB
-
-    input:
-    tuple val(gsm_id), path(reads)
-
-    output:
-    tuple val(gsm_id), path("${gsm_id}_R1.trimmed.fastq.gz")
-
-    script:
-    """
-    fastp \
-        -i ${reads[0]} \
-        -o ${gsm_id}_R1.trimmed.fastq.gz \
-        --length_required 36 \
-        --thread ${task.cpus} \
-        --html ${gsm_id}_fastp.html \
-        --json ${gsm_id}_fastp.json
-    """
-}
-
-process ALIGN_DNA_PE {
-    tag { gsm_id }
-    cpus 8
-    memory 32.GB
-
-    input:
-    tuple val(gsm_id), path(reads)
-    val index_path
-
-    output:
-    tuple val(gsm_id), path("${gsm_id}.sorted.bam"), path("${gsm_id}.sorted.bam.bai")
-
-    script:
-    """
-    bowtie2 --threads ${task.cpus} \
-            --very-sensitive-local \
-            -x ${index_path} \
-            -1 ${reads[0]} -2 ${reads[1]} \
-            2> ${gsm_id}_bowtie2.log | \
-    samtools sort -@ ${task.cpus} -o ${gsm_id}.sorted.bam -
-
-    samtools index ${gsm_id}.sorted.bam
-    """
-}
-
-process ALIGN_DNA_SE {
-    tag { gsm_id }
-    cpus 8
-    memory 32.GB
-
-    input:
-    tuple val(gsm_id), path(reads)
-    val index_path
-
-    output:
-    tuple val(gsm_id), path("${gsm_id}.sorted.bam"), path("${gsm_id}.sorted.bam.bai")
-
-    script:
-    """
-    bowtie2 --threads ${task.cpus} \
-            --very-sensitive-local \
-            -x ${index_path} \
-            -U ${reads[0]} \
-            2> ${gsm_id}_bowtie2.log | \
-    samtools sort -@ ${task.cpus} -o ${gsm_id}.sorted.bam -
-
-    samtools index ${gsm_id}.sorted.bam
-    """
-}
-
-process ALIGN_RNA_STAR_PE {
-    tag { gsm_id }
+process ALIGN_RNA_STAR {
+    tag { meta.gsm_id }
     cpus 16
     memory 64.GB
+    
+    publishDir "results/counts", mode: 'copy', pattern: "*.ReadsPerGene.out.tab"
 
     input:
-    tuple val(gsm_id), path(reads)
-    val star_index
+    val meta
 
     output:
-    tuple val(gsm_id), path("${gsm_id}.Aligned.sortedByCoord.out.bam")
+    tuple val(meta), path("${meta.gsm_id}.Aligned.sortedByCoord.out.bam"), path("${meta.gsm_id}.ReadsPerGene.out.tab")
 
     script:
+    def read_input = meta.trim_r2 ? "${meta.trim_r1},${meta.trim_r2}" : "${meta.trim_r1}"
+    
     """
     STAR --runThreadN ${task.cpus} \
-         --genomeDir ${star_index} \
-         --readFilesIn ${reads[0]} ${reads[1]} \
+         --genomeDir ${meta.star_index} \
+         --readFilesIn ${read_input} \
          --readFilesCommand zcat \
          --outSAMtype BAM SortedByCoordinate \
-         --outFileNamePrefix ${gsm_id}. \
+         --outFileNamePrefix ${meta.gsm_id}. \
+         --quantMode GeneCounts \
          --outStd Log
     """
 }
 
-process ALIGN_RNA_STAR_SE {
-    tag { gsm_id }
-    cpus 16
-    memory 64.GB
+process ALIGN_DNA {
+    tag { meta.gsm_id }
+    cpus 8
+    memory 32.GB
 
     input:
-    tuple val(gsm_id), path(reads)
-    val star_index
+    val meta 
 
     output:
-    tuple val(gsm_id), path("${gsm_id}.Aligned.sortedByCoord.out.bam")
+    tuple val(meta), path("${meta.gsm_id}.sorted.bam"), path("${meta.gsm_id}.sorted.bam.bai")
 
     script:
+    // Determine if we are in PE or SE mode for Bowtie2
+    def read_input = meta.trim_r2 ? "-1 ${meta.trim_r1} -2 ${meta.trim_r2}" : "-U ${meta.trim_r1}"
+    
     """
-    STAR --runThreadN ${task.cpus} \
-         --genomeDir ${star_index} \
-         --readFilesIn ${reads[0]} \
-         --readFilesCommand zcat \
-         --outSAMtype BAM SortedByCoordinate \
-         --outFileNamePrefix ${gsm_id}. \
-         --outStd Log
+    bowtie2 --threads ${task.cpus} \
+            --very-sensitive-local \
+            --rg-id ${meta.gsm_id} \
+            --rg "SM:${meta.gsm_id}" \
+            --rg "PL:ILLUMINA" \
+            -x ${meta.bowtie2_index} \
+            ${read_input} \
+            2> ${meta.gsm_id}_bowtie2.log | \
+    samtools sort -@ ${task.cpus} -o ${meta.gsm_id}.sorted.bam -
+
+    samtools index ${meta.gsm_id}.sorted.bam
     """
 }
 
 process MARK_DUPLICATES {
-    tag { gsm_id }
+    tag { meta.gsm_id }
     cpus 2
     memory 10.GB
 
     input:
-    tuple val(gsm_id), path(sorted_bam), path(bai)
+    val meta
 
     output:
-    tuple val(gsm_id), path("${gsm_id}.md.bam"), path("${gsm_id}.md.bam.bai"), path("${gsm_id}.metrics.txt")
+    tuple val(meta), path("${meta.gsm_id}.md.bam"), path("${meta.gsm_id}.md.bam.bai"), path("${meta.gsm_id}.metrics.txt")
 
     script:
     """
     # Use the environment variable provided by the module
     java -Xmx8G -jar \$EBROOTPICARD/picard.jar MarkDuplicates \
-        I=${sorted_bam} \
-        O=${gsm_id}.md.bam \
-        M=${gsm_id}.metrics.txt \
+        I=${meta.bam} \
+        O=${meta.gsm_id}.md.bam \
+        M=${meta.gsm_id}.metrics.txt \
         CREATE_INDEX=true \
         VALIDATION_STRINGENCY=LENIENT
 
     # Ensure index naming is consistent
-    if [ ! -f "${gsm_id}.md.bam.bai" ]; then
-        mv ${gsm_id}.md.bai ${gsm_id}.md.bam.bai
+    if [ ! -f "${meta.gsm_id}.md.bam.bai" ]; then
+        mv ${meta.gsm_id}.md.bai ${meta.gsm_id}.md.bam.bai
     fi
     """
 }
 
 process FILTER_BAM {
-    tag { gsm_id }
+    tag { meta.gsm_id }
     cpus 2
     memory 4.GB
 
     input:
-    tuple val(gsm_id), path(bam), path(bai), path(metrics)
+    val meta
 
     output:
-    tuple val(gsm_id), path("${gsm_id}.filtered.bam"), path("${gsm_id}.filtered.bam.bai")
+    tuple val(meta), path("${meta.gsm_id}.filtered.bam"), path("${meta.gsm_id}.filtered.bam.bai")
 
     script:
     """
@@ -222,86 +181,97 @@ process FILTER_BAM {
     # -F 1024: Exclude PCR/optical duplicates
     # -b: output BAM format
     
-    samtools view -b -q 30 -F 1804 ${bam} > ${gsm_id}.filtered.bam
+    samtools view -b -q 30 -F 1804 ${meta.dedup_bam} > ${meta.gsm_id}.filtered.bam
     
     # Index the filtered BAM
-    samtools index ${gsm_id}.filtered.bam
-    """
-}
-
-process MACS3_CALLPEAK {
-    tag { gsm_id }
-    cpus 4
-    memory 16.GB
-
-    input:
-    // We expect the treatment and control BAMs to be paired
-    tuple val(gsm_id), path(treatment_bam), path(treatment_bai), path(control_bam), path(control_bai)
-
-    output:
-    tuple val(gsm_id), path("${gsm_id}_peaks.narrowPeak"), path("${gsm_id}_summits.bed"), path("${gsm_id}_peaks.xls")
-
-    script:
-    // -f BAMPE is for paired-end; use -f BAM if single-end
-    // -g hs is for Human (GRCh38), mm for Mouse (mm10)
-    // -q 0.01 is the default q-value cutoff
-    """
-    macs3 callpeak \
-        -t ${treatment_bam} \
-        -c ${control_bam} \
-        -f BAMPE \
-        -g ${params.genomes[params.genome].genomeSize} \
-        -n ${gsm_id} \
-        -q 0.01 \
-        --outdir .
-    """
-}
-
-process MACS3_CALLPEAK_NoCONTROL {
-    tag { gsm_id }
-    cpus 4
-    memory 16.GB
-
-    input:
-    tuple val(gsm_id), path(bam), path(bai)
-
-    output:
-    tuple val(gsm_id), path("${gsm_id}_peaks.narrowPeak"), path("${gsm_id}_summits.bed"), path("${gsm_id}_peaks.xls")
-
-    script:
-    """
-    macs3 callpeak \
-        -t ${bam} \
-        -f BAMPE \
-        -g ${params.genomes[params.genome].genomeSize} \
-        -n ${gsm_id} \
-        -q 0.01 \
-        --outdir .
+    samtools index ${meta.gsm_id}.filtered.bam
     """
 }
 
 process GENERATE_BIGWIG {
-    tag { gsm_id }
+    tag { meta.gsm_id }
     cpus 4
     memory 16.GB
 
+    publishDir "results/bigwig", mode: 'copy', pattern: "*.bw"
+
     input:
-    tuple val(gsm_id), path(bam), path(bai)
+    val meta
 
     output:
-    tuple val(gsm_id), path("${gsm_id}.bw")
+    tuple val(meta), path("${meta.gsm_id}.bw")
 
     script:
     """
     bamCoverage \
-        --bam ${bam} \
-        --outFileName ${gsm_id}.bw \
+        --bam ${meta.filt_bam} \
+        --outFileName ${meta.gsm_id}.bw \
         --outFileFormat bigwig \
         --numberOfProcessors ${task.cpus} \
         --normalizeUsing CPM \
-        --binSize 10 \
-        --extendReads
+        --binSize 10 
     """
 }
 
+process MACS3_CALLPEAK_NoCONTROL {
+    tag { meta.gsm_id }
+    cpus 4
+    memory 16.GB
+    
+    publishDir "results/peaks", mode: 'copy'
+
+    input:
+    val meta
+
+    output:
+    tuple val(meta), path("${meta.gsm_id}_peaks.narrowPeak"), path("${meta.gsm_id}_summits.bed"), path("${meta.gsm_id}_peaks.xls")
+
+    script:
+    // Safely check for PE or PE_plus_R3 modes
+    def format = (meta.mode.startsWith("PE")) ? "BAMPE" : "BAM"
+    """
+    macs3 callpeak \
+        -t ${meta.filt_bam} \
+        -f ${format} \
+        -g ${params.genomes[params.genome].genomeSize} \
+        -n ${meta.gsm_id} \
+        -q 0.01 \
+        --outdir .
+    """
+}
+
+process SAMTOOLS_FLAGSTAT {
+    tag { meta.gsm_id }
+    cpus 1
+    memory 2.GB
+
+    input:
+    tuple val(meta), path(bam)
+
+    output:
+    path "${meta.gsm_id}.flagstat.txt"
+
+    script:
+    """
+    samtools flagstat ${bam} > ${meta.gsm_id}.flagstat.txt
+    """
+}
+
+process MULTIQC {
+    cpus 1
+    memory 4.GB
+    
+    publishDir "results/qc", mode: 'copy'
+
+    input:
+    path qc_inputs
+
+    output:
+    path "multiqc_report.html"
+
+    script:
+    """
+    multiqc .
+    """
+}
 
