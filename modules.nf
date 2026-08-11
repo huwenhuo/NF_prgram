@@ -1,5 +1,8 @@
 process DOWNLOAD_FASTQ {
     tag "${meta.gsm_id}"
+
+    cpus 2
+    memory 8.GB
     
     input:
     val meta
@@ -258,8 +261,8 @@ process SAMTOOLS_FLAGSTAT {
 }
 
 process MULTIQC {
-    cpus 1
-    memory 4.GB
+    cpus 10
+    memory 40.GB
     
     publishDir "results/qc", mode: 'copy'
 
