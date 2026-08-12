@@ -124,9 +124,6 @@ process STAR_TEALIGNMENT {
     def read_input = meta.trim_r2 ? "${meta.trim_r1} ${meta.trim_r2}" : "${meta.trim_r1}"
 
     """
-    module load star/2.7.10b
-    module load samtools/gcc/1.10
-
     STAR --genomeDir ${meta.star_index} \
          --runThreadN ${task.cpus} \
          --runMode alignReads \
@@ -161,8 +158,7 @@ process TECOUNT {
 
     script:
     """
-    module load singularity/default
-    singularity exec ${params.img_tecount} TEcount \
+    TEcount \
         --sortByPos --format BAM --mode multi \
         -b ${meta.bam} \
         --GTF ${meta.gtf} \
@@ -186,8 +182,7 @@ process TELOCAL {
 
     script:
     """
-    module load singularity/default
-    singularity exec ${params.img_telocal} TElocal \
+    TElocal \
         --sortByPos -b ${meta.bam} \
         --GTF ${meta.gtf} \
         --TE ${meta.te_loc} \
@@ -241,7 +236,6 @@ process IRFINDER_FASTQ {
     def reads = meta.trim_r2 ? "${meta.trim_r1} ${meta.trim_r2}" : "${meta.trim_r1}"
 
     """
-    module load singularityce/4.1.0
 
     # Resolve absolute paths for the reference directory
     INDEX_ABS=\$(readlink -f "${meta.irfinder_index}")
