@@ -107,6 +107,160 @@ process ALIGN_RNA_STAR {
     """
 }
 
+process STAR_TEALIGNMENT {
+    tag { meta.gsm_id }
+    cpus 10
+    memory '60 GB'
+    
+    publishDir "${params.outdir}/${meta.gsm_id}/", mode: 'copy'
+
+    input:
+    val meta
+
+    output:
+    tuple val(meta), path("${meta.gsm_id}_TE_Aligned.sortedByCoord.out.bam"), path("${meta.gsm_id}_TE_Aligned.sortedByCoord.out.bam.bai")
+
+    script:
+    def read_input = meta.trim_r2 ? "${meta.trim_r1} ${meta.trim_r2}" : "${meta.trim_r1}"
+
+    """
+    module load star/2.7.10b
+    module load samtools/gcc/1.10
+
+    STAR --genomeDir ${meta.star_index} \
+         --runThreadN ${task.cpus} \
+         --runMode alignReads \
+         --outSAMtype BAM SortedByCoordinate \
+         --outFilterMultimapNmax 1000 \
+         --outSAMmultNmax -1 \
+         --outFilterMismatchNoverLmax 0.06 \
+         --outMultimapperOrder Random \
+         --winAnchorMultimapNmax 1000 \
+         --alignTranscriptsPerReadNmax 1000 \
+         --alignMatesGapMax 350 \
+         --readFilesIn ${read_input} \
+         --readFilesCommand zcat \
+         --outFileNamePrefix ${meta.gsm_id}_TE_
+
+    samtools index ${meta.gsm_id}_TE_Aligned.sortedByCoord.out.bam
+    """
+}
+
+process TECOUNT {
+    tag { meta.gsm_id }
+    cpus 2
+    memory '20 GB'
+
+    publishDir "${params.outdir}/${meta.gsm_id}/", mode: 'copy'
+
+    input:
+    val meta
+
+    output:
+    tuple val(meta), path("${meta.gsm_id}.tecount.cntTable")
+
+    script:
+    """
+    module load singularity/default
+    singularity exec ${params.img_tecount} TEcount \
+        --sortByPos --format BAM --mode multi \
+        -b ${meta.bam} \
+        --GTF ${meta.gtf} \
+        --TE ${meta.te_gtf} \
+        --project ${meta.gsm_id}.tecount
+    """
+}
+
+process TELOCAL {
+    tag { meta.gsm_id }
+    cpus 1
+    memory '10 GB'
+
+    publishDir "${params.outdir}/${meta.gsm_id}/", mode: 'copy'
+
+    input:
+    val meta
+
+    output:
+    tuple val(meta), path("${meta.gsm_id}.telocal.cntTable")
+
+    script:
+    """
+    module load singularity/default
+    singularity exec ${params.img_telocal} TElocal \
+        --sortByPos -b ${meta.bam} \
+        --GTF ${meta.gtf} \
+        --TE ${meta.te_loc} \
+        --stranded reverse \
+        --project ${meta.gsm_id}.telocal
+    """
+}
+
+process SC_TE {
+    tag { meta.gsm_id }
+    cpus 5
+    memory '80 GB'
+
+    publishDir "${params.outdir}/${meta.gsm_id}/", mode: 'copy'
+
+    input:
+    val meta
+
+    output:
+    path "${meta.gsm_id}_scTE.csv", emit: scte_dir
+
+    script:
+    """
+    module load samtools/gcc/1.10
+    scTE \
+        -i ${meta.bam} \
+        -p ${task.cpus} \
+        -x ${meta.scTE_idx} \
+        --hdf5 False \
+        -CB False \
+        -UMI False \
+        -o ${meta.gsm_id}_scTE
+    """
+}
+
+process IRFINDER_FASTQ {
+    tag "${meta.gsm_id}"
+    cpus 5
+    memory '40 GB'
+
+    publishDir "${params.outdir}/irfinder", mode: 'copy'
+
+    input:
+    val meta
+
+    output:
+    path "ir_out_${meta.gsm_id}",       emit: ir_dir
+    path "ir_out_${meta.gsm_id}/*.txt", emit: ir_results
+
+    script:
+    def reads = meta.trim_r2 ? "${meta.trim_r1} ${meta.trim_r2}" : "${meta.trim_r1}"
+
+    """
+    module load singularityce/4.1.0
+
+    # Resolve absolute paths for the reference directory
+    INDEX_ABS=\$(readlink -f "${meta.irfinder_index}")
+
+    # Resolve absolute path(s) for input trimmed reads
+    READ_FILES=""
+    for f in ${reads}; do
+        READ_FILES="\${READ_FILES} \$(readlink -f \$f)"
+    done
+
+    singularity exec --bind /project,/archive,/home,/endosome,/work,\$PWD ${meta.img_irfinder} \
+        IRFinder -m FASTQ \
+        -r \${INDEX_ABS} \
+        -d ir_out_${meta.gsm_id} \
+        -t ${task.cpus} \
+        \${READ_FILES}
+    """
+}
+
 process ALIGN_DNA {
     tag { meta.gsm_id }
     cpus 8
