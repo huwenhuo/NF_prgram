@@ -206,8 +206,7 @@ process SC_TE {
 
     script:
     """
-    module load samtools/gcc/1.10
-    scTE \
+    /work/InternalMedicine/s184335/sc//repos/scTE/bin/scTE \
         -i ${meta.bam} \
         -p ${task.cpus} \
         -x ${meta.scTE_idx} \
