@@ -1,0 +1,201 @@
+params {
+    GDC_TOKEN = "/home/whu78/gdc-user-token.2024-11-13T04_56_35.590Z.txt"
+
+    sig_base     = "/archive/InternalMedicine/Chung_lab/shared/sc/sig_image"
+    img_fastp    = "${sig_base}/fastp-0.24.0.sif"
+    img_tecount  = "${sig_base}/tetranscripts.sif"
+    img_telocal  = "${sig_base}/telocal_latest.sif"
+    img_irfinder = "/nfs/roberts/project/pi_cl96/wf268/sif_img/IRFinder"
+
+    cpus            = 4
+    max_cpus        = 28
+    max_memory      = 128.GB
+    max_time        = 240.h
+    single_cpu_mem  = 5.GB
+
+    genomes = [
+        GRCh38: [
+            star_index    : "/nfs/roberts/project/pi_cl96/wf268/genome/GRCh38_STAR",
+            fasta         : "/apps/data/genomes/Homo_sapiens/NCBI/GRCh38/Sequence/WholeGenomeFasta/genome.fa",
+            gtf           : "/apps/data/genomes/Homo_sapiens/NCBI/GRCh38/Annotation/Genes.gencode/genes.gtf",
+            genomeSize    : "hs",
+            chrom_sizes   : "/nfs/roberts/project/pi_cl96/wf268/genome/GRCh38.chrom.sizes",
+            bowtie2_index : "/nfs/roberts/project/pi_cl96/wf268/genome/bowtie2/GRCh38/GRCh38"
+        ],
+
+        mm10_sw: [
+    	    star_index: "/archive/InternalMedicine/Chung_lab/shared/sc/genome/mm10_STAR",
+    	    irfinder_index: "/archive/InternalMedicine/Chung_lab/shared/sc//genome/mm10_IRFInder", 
+    	    bismark_index: "/archive/InternalMedicine/Chung_lab/shared/sc/genome/mm10_bismark", 
+            fasta: "/project/InternalMedicine/Chung_lab/shared/BenKroger/RefFolder/mm10/mm10.fa",
+            gtf: "/project/InternalMedicine/Chung_lab/shared/BenKroger/RefFolder/mm10/mm10.knownGene.gtf",
+            te_gtf: "/archive/InternalMedicine/Chung_lab/shared/sc/genome/mm10_rmsk_TE.gtf", 
+            te_loc: "/archive/InternalMedicine/Chung_lab/shared/sc/genome/mm10_rmsk_TE.gtf.locInd",
+    	    scTE_idx: "/work/InternalMedicine/s184335/sc/workspace/sisi/scTE_genome/mm10.exclusive.idx",
+    	    scTE_tx_idx: "/work/InternalMedicine/s184335/sc/workspace/sisi/scTE_genome/mm10_rmsk_tx_standard.inclusive.idx"
+        ],
+
+        mm10: [
+            star_index     : "/nfs/roberts/project/pi_cl96/wf268/genome/mm10_STAR",
+            fasta          : "/nfs/roberts/apps/data/genomes/Mus_musculus/NCBI/GRCm38/Sequence/WholeGenomeFasta/genome.fa",
+            gtf            : "/nfs/roberts/apps/data/genomes/Mus_musculus/NCBI/GRCm38/Annotation/Genes/genes.gtf",
+            genomeSize     : "mm",
+            chrom_sizes    : "/nfs/roberts/project/pi_cl96/wf268/genome/mm10.chrom.sizes",
+            bismark_index  : "/archive/InternalMedicine/Chung_lab/shared/sc/genome/mm10_bismark",
+            te_gtf         : "/archive/InternalMedicine/Chung_lab/shared/sc/genome/mm10_rmsk_TE.gtf",
+            te_loc         : "/archive/InternalMedicine/Chung_lab/shared/sc/genome/mm10_rmsk_TE.gtf.locInd",
+            scTE_idx       : "/archive/InternalMedicine/Chung_lab/shared/sc/genome/mm10_scTE",
+            irfinder_index : "/nfs/roberts/project/pi_cl96/wf268/genome/IRFinder/mm10",
+            irfinder_sif   : "/nfs/roberts/project/pi_cl96/wf268/sif_img/IRFinder",
+            bowtie2_index  : "/nfs/roberts/project/pi_cl96/wf268/genome/bowtie2/mm10/mm10"
+        ]
+    ]
+}
+
+singularity {
+    enabled    = true
+    autoMounts = true
+    cacheDir   = "/archive/InternalMedicine/Chung_lab/shared/sc/sig_image"
+}
+
+process {
+    cpus = 8
+    memory = 32.GB
+    time = 9.h
+    queueSize = 8
+
+    withName: 'DOWNLOAD_FASTQ' {
+        beforeScript = '''
+        module load SRA-Toolkit/3.2.0-gompi-2024a
+        export PATH=/home/wf268/edirect:${PATH}
+        '''
+        publishDir = [
+            path: "${params.output}/fastq",
+            mode: 'copy',
+            pattern: "*.gz"
+        ]
+    }
+
+    withName: 'TRIM_FASTQ' {
+        container = "${params.img_fastp}"
+        containerOptions = '--bind /work,/archive'
+        publishDir = [
+            path: "${params.output}/trimmed",
+            mode: 'copy',
+            pattern: "*.{html,json}"
+        ]
+    }
+
+    withName: 'ALIGN_DNA' {
+        beforeScript = 'module purge && module load Bowtie2/2.5.4-GCC-13.3.0 SAMtools/1.21-GCC-13.3.0'
+        publishDir = [
+            path: "${params.output}/alignment_dna",
+            mode: 'copy',
+            pattern: "*.{out,tab}"
+        ]
+    }
+
+    withName: 'ALIGN_RNA_.*' {
+        beforeScript = 'module purge && module load STAR/2.7.11b-GCC-13.3.0 SAMtools/1.21-GCC-13.3.0'
+        publishDir = [
+            path: "${params.output}/alignment_rna",
+            mode: 'copy',
+            pattern: "*.{out,tab}"
+        ]
+    }
+
+    withName: 'STAR_TEALIGNMENT' {
+        beforeScript = 'module purge && module load STAR/2.7.10b SAMtools/1.10'
+        publishDir = [
+            path: "${params.output}/star_te",
+            mode: 'copy',
+            pattern: "*.{out,tab}"
+        ]
+    }
+
+    withName: 'TECOUNT' {
+        publishDir = [
+            path: "${params.output}/tecount",
+            mode: 'copy',
+            pattern: "*.cntTable"
+        ]
+    }
+
+    withName: 'TELOCAL' {
+        publishDir = [
+            path: "${params.output}/telocal",
+            mode: 'copy',
+            pattern: "*.cntTable"
+        ]
+    }
+
+    withName: 'SC_TE' {
+        beforeScript = 'module purge && module load SAMtools/1.10'
+        publishDir = [
+            path: "${params.output}/scte",
+            mode: 'copy',
+            pattern: "*.csv"
+        ]
+    }
+
+    withName: 'IRFINDER_FASTQ' {
+        publishDir = [
+            path: "${params.output}/irfinder",
+            mode: 'copy'
+        ]
+    }
+
+    withName: 'MARK_DUPLICATES' {
+        beforeScript = 'module load picard/3.4.0-Java-21'
+        publishDir = [
+            path: "${params.output}/dedup",
+            mode: 'copy',
+            pattern: "*.{txt}"
+        ]
+    }
+
+    withName: 'FILTER_BAM' {
+        beforeScript = 'module purge && module load SAMtools/1.21-GCC-13.3.0'
+        publishDir = [
+            path: "${params.output}/filtered_bam",
+            mode: 'copy',
+            pattern: "*.{txt}"
+        ]
+    }
+
+    withName: 'MACS3_CALLPEAK_NoCONTROL' {
+        beforeScript = 'module purge && module load MACS3/3.0.3-gfbf-2024a'
+        publishDir = [
+            path: "${params.output}/peaks",
+            mode: 'copy',
+            pattern: "*.{bed,narrowPeak,broadPeak,xls}"
+        ]
+    }
+
+    withName: 'GENERATE_BIGWIG' {
+        beforeScript = 'module purge && module load deepTools/3.5.5-gfbf-2024a'
+        publishDir = [
+            path: "${params.output}/bigwig",
+            mode: 'copy',
+            pattern: "*.bw"
+        ]
+    }
+
+    withName: 'SAMTOOLS_FLAGSTAT.*' {
+        beforeScript = 'module purge && module load SAMtools/1.21-GCC-13.3.0'
+        publishDir = [
+            path: "${params.output}/stats",
+            mode: 'copy',
+            pattern: "*.{txt,stat,flagstat}"
+        ]
+    }
+
+    withName: 'MULTIQC' {
+        beforeScript = 'module purge && module load MultiQC/1.28-foss-2024a' 
+        publishDir = [
+            path: "${params.output}/multiqc",
+            mode: 'copy',
+            pattern: "multiqc_report.html"
+        ]
+    }
+}
