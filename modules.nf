@@ -84,8 +84,6 @@ process ALIGN_RNA_STAR {
     cpus 16
     memory 64.GB
     
-    publishDir "results/counts", mode: 'copy', pattern: "*.ReadsPerGene.out.tab"
-
     input:
     val meta
 
@@ -112,8 +110,6 @@ process STAR_TEALIGNMENT {
     cpus 10
     memory '60 GB'
     
-    publishDir "${params.outdir}/${meta.gsm_id}/", mode: 'copy'
-
     input:
     val meta
 
@@ -148,8 +144,6 @@ process TECOUNT {
     cpus 2
     memory '20 GB'
 
-    publishDir "${params.outdir}/${meta.gsm_id}/", mode: 'copy'
-
     input:
     val meta
 
@@ -171,8 +165,6 @@ process TELOCAL {
     tag { meta.gsm_id }
     cpus 1
     memory '10 GB'
-
-    publishDir "${params.outdir}/${meta.gsm_id}/", mode: 'copy'
 
     input:
     val meta
@@ -196,8 +188,6 @@ process SC_TE {
     cpus 5
     memory '80 GB'
 
-    publishDir "${params.outdir}/${meta.gsm_id}/", mode: 'copy'
-
     input:
     val meta
 
@@ -217,12 +207,34 @@ process SC_TE {
     """
 }
 
+process SC_TELOCAL {
+    tag { meta.gsm_id }
+    cpus 5
+    memory '120 GB'
+
+    input:
+    val meta
+
+    output:
+    path "${meta.gsm_id}_scTEtx.csv", emit: scte_dir
+
+    script:
+    """
+    /work/InternalMedicine/s184335/sc//repos/scTE/bin/scTE \
+        -i ${meta.bam} \
+        -p ${task.cpus} \
+        -x ${meta.scTE_tx_idx} \
+        --hdf5 False \
+        -CB False \
+        -UMI False \
+        -o ${meta.gsm_id}_scTEtx
+    """
+}
+
 process IRFINDER_FASTQ {
     tag "${meta.gsm_id}"
     cpus 5
     memory '40 GB'
-
-    publishDir "${params.outdir}/irfinder", mode: 'copy'
 
     input:
     val meta
@@ -343,8 +355,6 @@ process GENERATE_BIGWIG {
     cpus 4
     memory 16.GB
 
-    publishDir "results/bigwig", mode: 'copy', pattern: "*.bw"
-
     input:
     val meta
 
@@ -368,8 +378,6 @@ process MACS3_CALLPEAK_NoCONTROL {
     cpus 4
     memory 16.GB
     
-    publishDir "results/peaks", mode: 'copy'
-
     input:
     val meta
 
@@ -411,8 +419,6 @@ process MULTIQC {
     cpus 10
     memory 40.GB
     
-    publishDir "results/qc", mode: 'copy'
-
     input:
     path qc_inputs
 
