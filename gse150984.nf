@@ -13,6 +13,7 @@ include {
     DOWNLOAD_FASTQ;
     TRIM_FASTQ; 
     STAR_TEALIGNMENT; 
+    SAMTOOLS_INDEX;
     SC_TE;
     SC_TELOCAL;
     IRFINDER_FASTQ;
@@ -83,11 +84,12 @@ workflow {
         return updated_meta
     }
 
-    // 6. Alignments
+    // 6. Alignments & Indexing (Separated)
     ch_star_te_out = STAR_TEALIGNMENT(ch_aligned_input)
+    ch_indexed_bam = SAMTOOLS_INDEX(ch_star_te_out.bam)
 
     // 7. Downstream TE analyses
-    ch_te_input = ch_star_te_out.map { meta, bam, bai ->
+    ch_te_input = ch_indexed_bam.indexed_bam.map { meta, bam, bai ->
         def m = meta.clone()
         def selected_genome = params.genomes[meta.genome]
         m.bam          = bam
@@ -125,7 +127,7 @@ workflow {
         (files instanceof List ? files : [files]).collect { it.getParent() }
     }.flatten()
 
-    ch_star_qc = ch_star_te_out.map { meta, bam, bai -> 
+    ch_star_qc = ch_star_te_out.bam.map { meta, bam -> 
         bam.getParent() 
     }
 

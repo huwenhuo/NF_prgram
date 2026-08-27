@@ -169,7 +169,7 @@ process ALIGN_RNA_STAR {
 }
 
 process STAR_TEALIGNMENT {
-    tag { meta.gsm_id }
+    tag "${meta.gsm_id}"
     cpus 10
     memory '60 GB'
     
@@ -177,7 +177,7 @@ process STAR_TEALIGNMENT {
     val meta
 
     output:
-    tuple val(meta), path("${meta.gsm_id}_TE_Aligned.sortedByCoord.out.bam"), path("${meta.gsm_id}_TE_Aligned.sortedByCoord.out.bam.bai")
+    tuple val(meta), path("${meta.gsm_id}_TE_Aligned.sortedByCoord.out.bam"), emit: bam
 
     script:
     def read_input = meta.trim_r2 ? "${meta.trim_r1} ${meta.trim_r2}" : "${meta.trim_r1}"
@@ -197,8 +197,23 @@ process STAR_TEALIGNMENT {
          --readFilesIn ${read_input} \
          --readFilesCommand zcat \
          --outFileNamePrefix ${meta.gsm_id}_TE_
+    """
+}
 
-    samtools index ${meta.gsm_id}_TE_Aligned.sortedByCoord.out.bam
+process SAMTOOLS_INDEX {
+    tag "${meta.gsm_id}"
+    cpus 2
+    memory '4 GB'
+
+    input:
+    tuple val(meta), path(bam)
+
+    output:
+    tuple val(meta), path(bam), path("${bam}.bai"), emit: indexed_bam
+
+    script:
+    """
+    samtools index ${bam}
     """
 }
 
@@ -310,22 +325,11 @@ process IRFINDER_FASTQ {
     def reads = meta.trim_r2 ? "${meta.trim_r1} ${meta.trim_r2}" : "${meta.trim_r1}"
 
     """
-
-    # Resolve absolute paths for the reference directory
-    INDEX_ABS=\$(readlink -f "${meta.irfinder_index}")
-
-    # Resolve absolute path(s) for input trimmed reads
-    READ_FILES=""
-    for f in ${reads}; do
-        READ_FILES="\${READ_FILES} \$(readlink -f \$f)"
-    done
-
-    singularity exec --bind /project,/archive,/home,/endosome,/work,\$PWD ${meta.img_irfinder} \
-        IRFinder -m FASTQ \
-        -r \${INDEX_ABS} \
+    IRFinder -m FASTQ \
+        -r ${meta.irfinder_index} \
         -d ir_out_${meta.gsm_id} \
         -t ${task.cpus} \
-        \${READ_FILES}
+        ${reads}
     """
 }
 
