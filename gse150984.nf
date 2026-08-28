@@ -8,17 +8,34 @@ params.output      = "results"
 params.genome      = "GRCh38_sw"
 
 // Import processes from modules.nf in current working directory
-include { 
-    GET_SRR_ID;
-    DOWNLOAD_FASTQ;
-    TRIM_FASTQ; 
-    STAR_TEALIGNMENT; 
-    SAMTOOLS_INDEX;
-    SC_TE;
-    SC_TELOCAL;
-    IRFINDER_FASTQ;
-    MULTIQC
-} from './modules.nf'
+include { GET_SRR_ID } from './modules/get_srr_id'
+include { DOWNLOAD_FASTQ } from './modules/download_fastq'
+include { TRIM_FASTQ } from './modules/trim_fastq'
+include { ALIGN_RNA_STAR } from './modules/align_rna_star'
+include { STAR_TEALIGNMENT } from './modules/star_tealignment'
+include { SAMTOOLS_INDEX } from './modules/samtools_index'
+include { TECOUNT } from './modules/tecount'
+include { MERGE_TECOUNTS } from './modules/merge_tecounts'
+include { DESEQ2_TECOUNT } from './modules/deseq2_tecount'
+include { DESEQ2_CODING } from './modules/deseq2_coding'
+include { HEATMAP_ANALYSIS } from './modules/heatmap_analysis'
+include { PATHWAY_ANALYSIS } from './modules/pathway_analysis'
+include { TELOCAL } from './modules/telocal'
+include { MERGE_TELOCAL } from './modules/merge_telocal'
+include { EDGER_TELOCAL } from './modules/edger_telocal'
+include { SC_TE } from './modules/sc_te'
+include { SC_TELOCAL } from './modules/sc_telocal'
+include { MERGE_SCTELOCAL } from './modules/merge_sctelocal'
+include { EDGER_SCTELOCAL } from './modules/edger_sctelocal'
+include { IRFINDER_FASTQ } from './modules/irfinder_fastq'
+include { MERGE_IRFINDER } from './modules/merge_irfinder'
+include { DESEQ2_IRFINDER } from './modules/deseq2_irfinder'
+include { ALIGN_DNA } from './modules/align_dna'
+include { MARK_DUPLICATES } from './modules/mark_duplicates'
+include { FILTER_BAM } from './modules/filter_bam'
+include { GENERATE_BIGWIG } from './modules/generate_bigwig'
+include { SAMTOOLS_FLAGSTAT } from './modules/samtools_flagstat'
+include { MULTIQC } from './modules/multiqc'
 
 workflow {
 
@@ -31,6 +48,8 @@ workflow {
             def genome_info    = params.genomes ? params.genomes[params.genome] : null
             meta.gsm_id        = row.gsm_id
             meta.sample_name   = row.sample
+            meta.group1        = row.group1
+            meta.group2        = row.group2
             meta.genome        = params.genome
             meta.star_index    = genome_info ? genome_info.star_index : null
             meta.bowtie2_index = genome_info ? genome_info.bowtie2_index : null
@@ -101,10 +120,58 @@ workflow {
         return m
     }
 
-    SC_TE(ch_te_input)
-    SC_TELOCAL(ch_te_input)
+    // 8. Run TECOUNT analysis and summary
+    ch_tecount_out = TECOUNT(ch_te_input)
 
-    // 8. Build inputs for IRFinder using trimmed FASTQ paths
+    ch_all_counts = ch_tecount_out
+        .map { meta, count_file -> count_file }
+        .collect()
+
+    ch_merged_matrix = MERGE_TECOUNTS(ch_all_counts)
+
+    DESEQ2_TECOUNT(
+        ch_merged_matrix.matrix,
+        file(params.contrast_sheet)
+    )
+
+    // Run coding gene analysis and summary based on TECOUNT
+    DESEQ2_CODING(
+        ch_merged_matrix.matrix,
+        file(params.contrast_sheet)
+    )
+
+    PATHWAY_ANALYSIS( DESEQ2_CODING.out.results.flatten() )
+
+    HEATMAP_ANALYSIS(
+        DESEQ2_CODING.out.normalized_counts,
+        file(params.contrast_sheet),
+        DESEQ2_CODING.out.combined_results
+    )
+
+    //9. run TELOCAL process and downstream analysis
+    ch_telocal_out = TELOCAL(ch_te_input)
+
+    ch_all_telocal_counts = ch_telocal_out
+        .map { meta, count_file -> count_file }
+        .collect()
+
+    //ch_merged_telocal_matrix = MERGE_TELOCAL(ch_all_telocal_counts)
+
+    //EDGER_TElocal( ch_merged_telocal_matrix.matrix, file(params.contrast_sheet))
+
+    //10
+    SC_TE(ch_te_input)
+
+    //11
+    //ch_scte_out = SC_TELOCAL(ch_te_input)
+    //ch_all_scte_counts = ch_scte_out.scte_dir.collect()
+    //ch_merged_scte_matrix = MERGE_SCTELOCAL(ch_all_scte_counts)
+    //EDGER_SCTELOCAL(
+    //    ch_merged_scte_matrix.matrix,
+    //    file(params.contrast_sheet)
+    //)
+
+    // 12. Build inputs for IRFinder using trimmed FASTQ paths
     ch_irfinder_input = ch_trimmed.map { meta, trimmed_files ->
         def m = meta.clone()
         def selected_genome = params.genomes[meta.genome]
@@ -119,10 +186,14 @@ workflow {
         m.irfinder_index = selected_genome.irfinder_index
         return m
     }
-    
-    IRFINDER_FASTQ(ch_irfinder_input)
 
-    // 9. Collect QC logs for MultiQC
+    ch_irfinder_out = IRFINDER_FASTQ(ch_irfinder_input)
+    ch_all_ir_dirs = ch_irfinder_out.ir_dir.collect()
+    ch_merged_ir = MERGE_IRFINDER(ch_all_ir_dirs)
+    DESEQ2_IRFINDER( ch_merged_ir.intron_matrix, ch_merged_ir.splice_matrix, file(params.contrast_sheet) )
+
+
+    // 14. Collect QC logs for MultiQC
     ch_trim_qc = ch_trimmed.map { meta, files -> 
         (files instanceof List ? files : [files]).collect { it.getParent() }
     }.flatten()
