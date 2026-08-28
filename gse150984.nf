@@ -29,10 +29,10 @@ include { VOLCANO_PLOT } from './modules/volcano_plot'
 include { TELOCAL } from './modules/telocal'
 include { MERGE_TELOCAL } from './modules/merge_telocal'
 include { EDGER_TELOCAL } from './modules/edger_telocal'
+
 include { SC_TE } from './modules/sc_te'
 include { SC_TELOCAL } from './modules/sc_telocal'
 include { MERGE_SCTELOCAL } from './modules/merge_sctelocal'
-include { EDGER_SCTELOCAL } from './modules/edger_sctelocal'
 
 include { IRFINDER_FASTQ } from './modules/irfinder_fastq'
 include { MERGE_IRFINDER } from './modules/merge_irfinder'
@@ -191,9 +191,9 @@ workflow {
         .map { meta, count_file -> count_file }
         .collect()
 
-    //ch_merged_telocal_matrix = MERGE_TELOCAL(ch_all_telocal_counts)
+    ch_merged_telocal_matrix = MERGE_TELOCAL(ch_all_telocal_counts)
 
-    //EDGER_TElocal( ch_merged_telocal_matrix.matrix, file(params.contrast_sheet))
+    EDGER_TELOCAL( ch_merged_telocal_matrix.matrix, file(params.contrast_sheet))
 
     //10
     SC_TE(ch_te_input)

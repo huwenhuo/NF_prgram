@@ -2,7 +2,7 @@ process EDGER_TELOCAL {
     tag "contrast_analysis_telocal"
     cpus 4
     memory '16 GB'
-    publishDir "${params.output}/edger_telocal", mode: 'copy'
+    publishDir "${params.output}/telocal_analysis", mode: 'copy'
 
     input:
     path counts_matrix
@@ -24,6 +24,14 @@ process EDGER_TELOCAL {
     # 1. Load inputs
     meta_df <- read.table("${contrast_sheet}", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
     counts  <- read.table("${counts_matrix}", header = TRUE, row.names = 1, sep = "\t", check.names = FALSE)
+
+    # Convert character columns to numeric and replace any coercion NAs with 0
+    counts[] <- lapply(counts, function(x) {
+        num <- suppressWarnings(as.numeric(as.character(x)))
+        num[is.na(num)] <- 0
+        return(num)
+    })
+    counts <- as.matrix(counts)
 
     # 2. Exclude ENSEMBL coding genes (ENSG for Human, ENSMUSG for Mouse)
     is_ensembl_gene <- grepl("^ENSG|^ENSMUSG", rownames(counts), ignore.case = TRUE)

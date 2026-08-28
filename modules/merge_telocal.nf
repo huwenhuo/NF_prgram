@@ -2,7 +2,7 @@ process MERGE_TELOCAL {
     tag "merge_telocal_matrix"
     cpus 2
     memory '16 GB'
-    publishDir "${params.output}/merged_matrix", mode: 'copy'
+    publishDir "${params.output}/telocal_analysis", mode: 'copy'
 
     input:
     path count_tables, stageAs: "?/*"
