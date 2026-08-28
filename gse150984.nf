@@ -14,12 +14,18 @@ include { TRIM_FASTQ } from './modules/trim_fastq'
 include { ALIGN_RNA_STAR } from './modules/align_rna_star'
 include { STAR_TEALIGNMENT } from './modules/star_tealignment'
 include { SAMTOOLS_INDEX } from './modules/samtools_index'
+
 include { TECOUNT } from './modules/tecount'
 include { MERGE_TECOUNTS } from './modules/merge_tecounts'
 include { DESEQ2_TECOUNT } from './modules/deseq2_tecount'
+include { VOLCANO_TECOUNT } from './modules/volcano_tecount'
+include { HEATMAP_TECOUNT } from './modules/heatmap_tecount'
+
 include { DESEQ2_CODING } from './modules/deseq2_coding'
 include { HEATMAP_ANALYSIS } from './modules/heatmap_analysis'
 include { PATHWAY_ANALYSIS } from './modules/pathway_analysis'
+include { VOLCANO_PLOT } from './modules/volcano_plot'
+
 include { TELOCAL } from './modules/telocal'
 include { MERGE_TELOCAL } from './modules/merge_telocal'
 include { EDGER_TELOCAL } from './modules/edger_telocal'
@@ -27,9 +33,13 @@ include { SC_TE } from './modules/sc_te'
 include { SC_TELOCAL } from './modules/sc_telocal'
 include { MERGE_SCTELOCAL } from './modules/merge_sctelocal'
 include { EDGER_SCTELOCAL } from './modules/edger_sctelocal'
+
 include { IRFINDER_FASTQ } from './modules/irfinder_fastq'
 include { MERGE_IRFINDER } from './modules/merge_irfinder'
 include { DESEQ2_IRFINDER } from './modules/deseq2_irfinder'
+include { HEATMAP_IRFINDER } from './modules/heatmap_irfinder'
+include { VOLCANO_IRFINDER } from './modules/volcano_irfinder'
+
 include { ALIGN_DNA } from './modules/align_dna'
 include { MARK_DUPLICATES } from './modules/mark_duplicates'
 include { FILTER_BAM } from './modules/filter_bam'
@@ -134,13 +144,39 @@ workflow {
         file(params.contrast_sheet)
     )
 
+    ch_te_results_flat = DESEQ2_TECOUNT.out.results.flatten()
+
+    ch_te_volcano_input = ch_te_results_flat
+        .map { file ->
+            def name = file.name.replaceAll("_deseq2_results\\.csv", "")
+            return tuple(name, file)
+        }
+
+    VOLCANO_TECOUNT(ch_te_volcano_input)
+
+    HEATMAP_TECOUNT(
+        DESEQ2_TECOUNT.out.normalized_counts,
+        file(params.contrast_sheet),
+        DESEQ2_TECOUNT.out.combined_results
+    )
+
     // Run coding gene analysis and summary based on TECOUNT
     DESEQ2_CODING(
-        ch_merged_matrix.matrix,
+        ch_merged_matrix.matrix, // or your coding count matrix channel
         file(params.contrast_sheet)
     )
 
-    PATHWAY_ANALYSIS( DESEQ2_CODING.out.results.flatten() )
+    ch_coding_results_flat = DESEQ2_CODING.out.results.flatten()
+
+    ch_volcano_input = ch_coding_results_flat
+        .map { file ->
+            def name = file.name.replaceAll("_coding_deseq2_results\\.csv", "")
+            return tuple(name, file)
+        }
+
+    VOLCANO_PLOT(ch_volcano_input)
+
+    PATHWAY_ANALYSIS(ch_coding_results_flat)
 
     HEATMAP_ANALYSIS(
         DESEQ2_CODING.out.normalized_counts,
@@ -191,7 +227,19 @@ workflow {
     ch_all_ir_dirs = ch_irfinder_out.ir_dir.collect()
     ch_merged_ir = MERGE_IRFINDER(ch_all_ir_dirs)
     DESEQ2_IRFINDER( ch_merged_ir.intron_matrix, ch_merged_ir.splice_matrix, file(params.contrast_sheet) )
+    HEATMAP_IRFINDER(
+        DESEQ2_IRFINDER.out.ratio_matrix,
+        file(params.contrast_sheet),
+        DESEQ2_IRFINDER.out.combined_results
+    )
 
+    ch_ir_results_flat = DESEQ2_IRFINDER.out.results.flatten()
+    ch_ir_volcano_input = ch_ir_results_flat
+        .map { file ->
+            def name = file.name.replaceAll("_irfinder_deseq2_results\\.csv", "")
+            return tuple(name, file)
+        }
+    VOLCANO_IRFINDER(ch_ir_volcano_input)
 
     // 14. Collect QC logs for MultiQC
     ch_trim_qc = ch_trimmed.map { meta, files -> 

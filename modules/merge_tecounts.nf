@@ -2,7 +2,7 @@ process MERGE_TECOUNTS {
     tag "all_samples_tecount"
     cpus 2
     memory '8 GB'
-    publishDir "${params.output}/tecount_matrix", mode: 'copy'
+    publishDir "${params.output}/tecount_analysis", mode: 'copy'
 
     input:
     path count_files

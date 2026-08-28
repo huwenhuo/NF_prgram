@@ -2,7 +2,7 @@ process MERGE_IRFINDER {
     tag "merge_irfinder"
     cpus 2
     memory '16 GB'
-    publishDir "${params.output}/irfinder_matrix", mode: 'copy'
+    publishDir "${params.output}/irfinder_analysis", mode: 'copy'
 
     input:
     path ir_dirs, stageAs: "?/*"

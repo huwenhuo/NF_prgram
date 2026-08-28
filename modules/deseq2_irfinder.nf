@@ -2,7 +2,7 @@ process DESEQ2_IRFINDER {
     tag "contrast_analysis_irfinder"
     cpus 4
     memory '32 GB'
-    publishDir "${params.output}/deseq2_irfinder", mode: 'copy'
+    publishDir "${params.output}/irfinder_analysis", mode: 'copy'
 
     input:
     path intron_matrix
@@ -12,6 +12,7 @@ process DESEQ2_IRFINDER {
     output:
     path "*_irfinder_deseq2_results.csv"  , emit: results, optional: true
     path "all_irfinder_deseq2_results.csv", emit: combined_results, optional: true
+    path "irfinder_ratio_matrix.csv"      , emit: ratio_matrix, optional: true
 
     script:
     """
@@ -130,5 +131,18 @@ process DESEQ2_IRFINDER {
         combined_dt <- rbindlist(all_results_list, fill = TRUE)
         fwrite(combined_dt, file = "all_irfinder_deseq2_results.csv")
     }
+
+    # Export global ratio matrix for heatmap visualization across all valid samples
+    valid_all_samples <- intersect(meta_df\$gsm_id, colnames(intron_mat))
+    if (length(valid_all_samples) > 0) {
+        g_intron <- intron_mat[, valid_all_samples, drop = FALSE]
+        g_splice <- splice_mat[, valid_all_samples, drop = FALSE]
+        common_rows <- intersect(rownames(g_intron), rownames(g_splice))
+        
+        # Calculate intron retention ratio: Intron / (Intron + Splice + pseudocount)
+        ratio_mat <- (g_intron[common_rows, ] + 1) / (g_intron[common_rows, ] + g_splice[common_rows, ] + 2)
+        write.csv(ratio_mat, file = "irfinder_ratio_matrix.csv", quote = FALSE)
+    }
+
     """
 }
