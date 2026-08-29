@@ -27,7 +27,7 @@ process DESEQ2_CODING {
     detect_sep <- function(filepath) {
         first_line <- readLines(filepath, n = 1)
         if (grepl(",", first_line)) return(",")
-        if (grepl("\\t", first_line)) return("\\t")
+        if (grepl("\t", first_line)) return("\t")
         return("")
     }
     
@@ -65,31 +65,18 @@ process DESEQ2_CODING {
     norm_counts_all <- counts(dds_full, normalized = TRUE)
     write.csv(norm_counts_all, file = "deseq2_normalized_counts.csv", quote = FALSE)
 
-    # 4. Dynamic OrgDb annotation detection and Keytype mapping setup
+    # 4. Dynamic OrgDb annotation detection
     sample_gene <- rownames(counts)[1]
     if (grepl("^ENSG", sample_gene, ignore.case = TRUE)) {
         library(org.Hs.eg.db)
         org_db <- org.Hs.eg.db
-        my_keytype <- "ENSEMBL"
-        message("Detected Human ENSEMBL Genes (ENSG). Using org.Hs.eg.db.")
-    } else if (grepl("^ENST", sample_gene, ignore.case = TRUE)) {
-        library(org.Hs.eg.db)
-        org_db <- org.Hs.eg.db
-        my_keytype <- "ENSEMBLTRANS"
-        message("Detected Human ENSEMBL Transcripts (ENST). Using org.Hs.eg.db.")
+        message("Detected Human ENSEMBL IDs (ENSG). Using org.Hs.eg.db.")
     } else if (grepl("^ENSMUSG", sample_gene, ignore.case = TRUE)) {
         library(org.Mm.eg.db)
         org_db <- org.Mm.eg.db
-        my_keytype <- "ENSEMBL"
-        message("Detected Mouse ENSEMBL Genes (ENSMUSG). Using org.Mm.eg.db.")
-    } else if (grepl("^ENSMUST", sample_gene, ignore.case = TRUE)) {
-        library(org.Mm.eg.db)
-        org_db <- org.Mm.eg.db
-        my_keytype <- "ENSEMBLTRANS"
-        message("Detected Mouse ENSEMBL Transcripts (ENSMUST). Using org.Mm.eg.db.")
+        message("Detected Mouse ENSEMBL IDs (ENSMUSG). Using org.Mm.eg.db.")
     } else {
         org_db <- NULL
-        my_keytype <- NULL
         message("Unrecognized ENSEMBL format. Skipping gene symbol mapping.")
     }
 
@@ -106,8 +93,8 @@ process DESEQ2_CODING {
 
         # Filter out NA and blank rows
         sub_meta <- meta_df[!is.na(meta_df[[col_name]]) & 
-                             tolower(as.character(meta_df[[col_name]])) != "na" & 
-                             meta_df[[col_name]] != "", ]
+                            tolower(as.character(meta_df[[col_name]])) != "na" & 
+                            meta_df[[col_name]] != "", ]
 
         valid_samples <- intersect(sub_meta\$gsm_id, colnames(counts))
         if (length(valid_samples) < 2) {
@@ -145,21 +132,10 @@ process DESEQ2_CODING {
         )
         dds <- DESeq(dds)
 
-        # PCA export with sample text labels
+        # PCA export
         pdf(paste0(col_name, "_coding_pca.pdf"))
         vsd <- vst(dds, blind = FALSE)
-        pca_data <- plotPCA(vsd, intgroup = "target_factor", returnData = TRUE)
-        percentVar <- round(100 * attr(pca_data, "percentVar"))
-        
-        p_pca <- ggplot(pca_data, aes(x = PC1, y = PC2, color = target_factor)) +
-            geom_point(size = 3) +
-            geom_text(aes(label = name), vjust = -0.8, size = 3, show.legend = FALSE) +
-            xlab(paste0("PC1: ", percentVar[1], "% variance")) +
-            ylab(paste0("PC2: ", percentVar[2], "% variance")) +
-            theme_minimal() +
-            ggtitle(paste("PCA (Coding Genes):", col_name))
-            
-        print(p_pca)
+        print(plotPCA(vsd, intgroup = "target_factor") + ggtitle(paste("PCA (Coding Genes):", col_name)))
         dev.off()
 
         # Extract contrast tables and map gene symbols
@@ -174,7 +150,7 @@ process DESEQ2_CODING {
                     org_db,
                     keys      = clean_ids,
                     column    = "SYMBOL",
-                    keytype   = my_keytype,
+                    keytype   = "ENSEMBL",
                     multiVals = "first"
                 )]
             } else {

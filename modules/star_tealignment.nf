@@ -1,7 +1,7 @@
 process STAR_TEALIGNMENT {
     tag "${meta.gsm_id}"
     cpus 10
-    memory '60 GB'
+    memory '80 GB'
     
     input:
     val meta

@@ -22,16 +22,43 @@ process DESEQ2_TECOUNT {
     library(ggplot2)
     library(data.table)
 
-    meta_df <- read.table("${contrast_sheet}", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-    counts  <- read.table("${counts_matrix}", header = TRUE, row.names = 1, sep = "\t", check.names = FALSE)
+    detect_sep <- function(filepath) {
+        first_line <- readLines(filepath, n = 1)
+        if (grepl(",", first_line)) return(",")
+        if (grepl("\t", first_line)) return("\t")
+        return("")
+    }
+    
+    meta_sep <- detect_sep("${contrast_sheet}")
+    meta_df <- read.table("${contrast_sheet}", header = TRUE, sep = meta_sep, stringsAsFactors = FALSE)
+    print("--- Meta DF Loaded ---")
+    print(head(meta_df))
+    
+    counts_sep <- detect_sep("${counts_matrix}")
+    counts <- read.table("${counts_matrix}", header = TRUE, row.names = 1, sep = counts_sep, check.names = FALSE, stringsAsFactors = FALSE, fill = TRUE)
+    
+    # Force convert to a proper numeric matrix cleanly
+    counts <- as.matrix(counts)
+    storage.mode(counts) <- "numeric"
+
     is_ensembl_gene <- grepl("^ENSG|^ENSMUSG", rownames(counts), ignore.case = TRUE)
     counts <- counts[!is_ensembl_gene, , drop = FALSE]
 
+    print("--- Counts After Conversion ---")
+    str(counts)
+    print(head(counts))
+
     # Export full normalized matrix across valid samples
     valid_all_samples <- intersect(meta_df\$gsm_id, colnames(counts))
-    full_counts <- counts[, valid_all_samples, drop = FALSE]
+    full_counts <- as.matrix(counts[, valid_all_samples, drop = FALSE])
+    storage.mode(full_counts) <- "numeric"
+    
     full_meta <- meta_df[meta_df\$gsm_id %in% valid_all_samples, , drop = FALSE]
     rownames(full_meta) <- full_meta\$gsm_id
+
+    print("--- Counts before DESeq2 ---")
+    print(head(counts))
+    print(head(full_meta))
 
     dds_full <- DESeqDataSetFromMatrix(countData = round(full_counts), colData = full_meta, design = ~ 1)
     dds_full <- estimateSizeFactors(dds_full)
@@ -51,7 +78,9 @@ process DESEQ2_TECOUNT {
 
         rownames(sub_meta) <- sub_meta\$gsm_id
         sub_meta <- sub_meta[valid_samples, , drop = FALSE]
-        sub_counts <- counts[, valid_samples, drop = FALSE]
+        
+        sub_counts <- as.matrix(counts[, valid_samples, drop = FALSE])
+        storage.mode(sub_counts) <- "numeric"
 
         raw_values <- as.character(sub_meta[[col_name]])
         sub_meta\$target_factor <- as.factor(ifelse(tolower(raw_values) %in% ctrl_patterns, "ctrl", raw_values))
@@ -60,6 +89,10 @@ process DESEQ2_TECOUNT {
         sub_meta\$target_factor <- relevel(sub_meta\$target_factor, ref = "ctrl")
         treatments <- setdiff(levels(sub_meta\$target_factor), "ctrl")
         if (length(treatments) == 0) next
+
+        print("--- Counts before DESeq2 ---")
+        print(head(sub_counts))
+        print(head(sub_meta))
 
         dds <- DESeqDataSetFromMatrix(countData = round(sub_counts), colData = sub_meta, design = ~ target_factor)
         dds <- DESeq(dds)

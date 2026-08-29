@@ -21,9 +21,23 @@ process DESEQ2_IRFINDER {
     library(DESeq2)
     library(data.table)
 
-    meta_df    <- read.table("${contrast_sheet}", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-    intron_mat <- read.table("${intron_matrix}", header = TRUE, row.names = 1, sep = "\t", check.names = FALSE)
-    splice_mat <- read.table("${splice_matrix}", header = TRUE, row.names = 1, sep = "\t", check.names = FALSE)
+    detect_sep <- function(filepath) {
+        first_line <- readLines(filepath, n = 1)
+        if (grepl(",", first_line)) return(",")
+        if (grepl("\t", first_line)) return("\t")
+        return("")
+    }
+    
+    meta_sep <- detect_sep("${contrast_sheet}")
+    meta_df    <- read.table("${contrast_sheet}", header = TRUE, sep = meta_sep, stringsAsFactors = FALSE)
+    
+    intron_sep <- detect_sep("${intron_matrix}")
+    intron_mat <- read.table("${intron_matrix}", header = TRUE, row.names = 1, sep = intron_sep, check.names = FALSE)
+    intron_mat[] <- lapply(intron_mat, function(x) as.numeric(as.character(x)))
+    
+    splice_sep <- detect_sep("${splice_matrix}")
+    splice_mat <- read.table("${splice_matrix}", header = TRUE, row.names = 1, sep = splice_sep, check.names = FALSE)
+    splice_mat[] <- lapply(splice_mat, function(x) as.numeric(as.character(x)))
 
     # Ensure feature alignment
     common_ids <- intersect(rownames(intron_mat), rownames(splice_mat))

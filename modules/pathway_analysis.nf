@@ -41,30 +41,40 @@ process PATHWAY_ANALYSIS {
         q(save = "no", status = 0)
     }
 
-    # Detect species automatically from ENSEMBL ID prefix
+    # Detect species and ID type automatically from ENSEMBL ID prefix
     sample_gene <- res_dt\$clean_gene_id[1]
+    
     if (grepl("^ENSG", sample_gene, ignore.case = TRUE)) {
         species_name <- "Homo sapiens"
         org_db_pkg   <- "org.Hs.eg.db"
+        my_keytype   <- "ENSEMBL"
+    } else if (grepl("^ENST", sample_gene, ignore.case = TRUE)) {
+        species_name <- "Homo sapiens"
+        org_db_pkg   <- "org.Hs.eg.db"
+        my_keytype   <- "ENSEMBLTRANS"
     } else if (grepl("^ENSMUSG", sample_gene, ignore.case = TRUE)) {
         species_name <- "Mus musculus"
         org_db_pkg   <- "org.Mm.eg.db"
+        my_keytype   <- "ENSEMBL"
+    } else if (grepl("^ENSMUST", sample_gene, ignore.case = TRUE)) {
+        species_name <- "Mus musculus"
+        org_db_pkg   <- "org.Mm.eg.db"
+        my_keytype   <- "ENSEMBLTRANS"
     } else {
-        stop("Could not infer species from ENSEMBL IDs. Expected ENSG or ENSMUSG.")
+        stop("Could not infer species/type from ENSEMBL IDs.")
     }
 
     library(org_db_pkg, character.only = TRUE)
     org_db <- get(org_db_pkg)
 
-    # 2. Map ENSEMBL IDs to Entrez IDs
+    # 2. Map ENSEMBL/Transcript IDs to Entrez IDs
     entrez_map <- mapIds(
         org_db,
         keys      = res_dt\$clean_gene_id,
         column    = "ENTREZID",
-        keytype   = "ENSEMBL",
+        keytype   = my_keytype,
         multiVals = "first"
     )
-
     res_dt[, entrez_id := entrez_map[clean_gene_id]]
     res_dt <- res_dt[!is.na(entrez_id) & !duplicated(entrez_id)]
 

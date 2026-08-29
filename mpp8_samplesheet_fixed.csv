@@ -1,0 +1,13 @@
+gsm_id,fastq_1,fastq_2,group
+wt1,/archive/InternalMedicine/Chung_lab/shared/sc/fastq_mpp/25075FL-01-01-01_S130_L006_R1_001.fastq.gz,/archive/InternalMedicine/Chung_lab/shared/sc/fastq_mpp/25075FL-01-01-01_S130_L006_R2_001.fastq.gz,wt
+wt2,/archive/InternalMedicine/Chung_lab/shared/sc/fastq_mpp/25075FL-01-01-04_S133_L006_R1_001.fastq.gz,/archive/InternalMedicine/Chung_lab/shared/sc/fastq_mpp/25075FL-01-01-04_S133_L006_R2_001.fastq.gz,wt
+wt3,/archive/InternalMedicine/Chung_lab/shared/sc/fastq_mpp/25075FL-01-01-07_S136_L006_R1_001.fastq.gz,/archive/InternalMedicine/Chung_lab/shared/sc/fastq_mpp/25075FL-01-01-07_S136_L006_R2_001.fastq.gz,wt
+wt4,/archive/InternalMedicine/Chung_lab/shared/sc/fastq_mpp/25075FL-01-01-10_S139_L006_R1_001.fastq.gz,/archive/InternalMedicine/Chung_lab/shared/sc/fastq_mpp/25075FL-01-01-10_S139_L006_R2_001.fastq.gz,wt
+wt5,/archive/InternalMedicine/Chung_lab/shared/sc/fastq_mpp/25075FL-01-01-13_S142_L006_R1_001.fastq.gz,/archive/InternalMedicine/Chung_lab/shared/sc/fastq_mpp/25075FL-01-01-13_S142_L006_R2_001.fastq.gz,wt
+wt6,/archive/InternalMedicine/Chung_lab/shared/sc/fastq_mpp/25075FL-01-01-16_S145_L006_R1_001.fastq.gz,/archive/InternalMedicine/Chung_lab/shared/sc/fastq_mpp/25075FL-01-01-16_S145_L006_R2_001.fastq.gz,wt
+ko1,/archive/InternalMedicine/Chung_lab/shared/sc/fastq_mpp/25075FL-01-01-19_S148_L006_R1_001.fastq.gz,/archive/InternalMedicine/Chung_lab/shared/sc/fastq_mpp/25075FL-01-01-19_S148_L006_R2_001.fastq.gz,ko
+ko2,/archive/InternalMedicine/Chung_lab/shared/sc/fastq_mpp/25075FL-01-01-22_S151_L006_R1_001.fastq.gz,/archive/InternalMedicine/Chung_lab/shared/sc/fastq_mpp/25075FL-01-01-22_S151_L006_R2_001.fastq.gz,ko
+ko3,/archive/InternalMedicine/Chung_lab/shared/sc/fastq_mpp/25075FL-01-01-25_S154_L006_R1_001.fastq.gz,/archive/InternalMedicine/Chung_lab/shared/sc/fastq_mpp/25075FL-01-01-25_S154_L006_R2_001.fastq.gz,ko
+ko4,/archive/InternalMedicine/Chung_lab/shared/sc/fastq_mpp/25075FL-01-01-28_S157_L006_R1_001.fastq.gz,/archive/InternalMedicine/Chung_lab/shared/sc/fastq_mpp/25075FL-01-01-28_S157_L006_R2_001.fastq.gz,ko
+ko5,/archive/InternalMedicine/Chung_lab/shared/sc/fastq_mpp/25075FL-01-01-31_S160_L006_R1_001.fastq.gz,/archive/InternalMedicine/Chung_lab/shared/sc/fastq_mpp/25075FL-01-01-31_S160_L006_R2_001.fastq.gz,ko
+ko6,/archive/InternalMedicine/Chung_lab/shared/sc/fastq_mpp/25075FL-01-01-34_S163_L006_R1_001.fastq.gz,/archive/InternalMedicine/Chung_lab/shared/sc/fastq_mpp/25075FL-01-01-34_S163_L006_R2_001.fastq.gz,ko

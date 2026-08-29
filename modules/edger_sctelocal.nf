@@ -22,22 +22,21 @@ process EDGER_SCTELOCAL {
     library(data.table)
 
     # 1. Load inputs with forced numeric conversion on count data matrix columns
-    meta_df <- read.table("${contrast_sheet}", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
-    counts  <- read.table("${counts_matrix}", header = TRUE, row.names = 1, sep = "\t", check.names = FALSE)
+    detect_sep <- function(filepath) {
+        first_line <- readLines(filepath, n = 1)
+        if (grepl(",", first_line)) return(",")
+        if (grepl("\t", first_line)) return("\t")
+        return(",")
+    }
+    
+    contrast_sep <- detect_sep("${contrast_sheet}")
+    meta_df <- read.table("${contrast_sheet}", header = TRUE, sep = contrast_sep, stringsAsFactors = FALSE)
 
-    print("--- DEBUG: Dimensions of loaded counts matrix ---")
-    print(dim(counts))
-    print("--- DEBUG: First few rows and columns of counts ---")
-    print(head(counts[, 1:min(5, ncol(counts)), drop = FALSE]))
-    print("--- DEBUG: Column classes of counts ---")
-    print(sapply(counts, class))
+    counts  <- read.table("${counts_matrix}", header = TRUE, row.names = 1, sep = "\t", check.names = FALSE)
 
     counts[] <- lapply(counts, function(x) as.numeric(as.character(x)))
     counts <- as.matrix(counts)
     
-    print("--- DEBUG: Matrix mode after conversion ---")
-    print(mode(counts))
-
     counts[] <- lapply(counts, function(x) as.numeric(as.character(x)))
     counts <- as.matrix(counts)
 

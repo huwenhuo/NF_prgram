@@ -22,7 +22,16 @@ process EDGER_TELOCAL {
     library(data.table)
 
     # 1. Load inputs
-    meta_df <- read.table("${contrast_sheet}", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+    detect_sep <- function(filepath) {
+        first_line <- readLines(filepath, n = 1)
+        if (grepl(",", first_line)) return(",")
+        if (grepl("\t", first_line)) return("\t")
+        return(",")
+    }
+    
+    contrast_sep <- detect_sep("${contrast_sheet}")
+    meta_df <- read.table("${contrast_sheet}", header = TRUE, sep = contrast_sep, stringsAsFactors = FALSE)
+
     counts  <- read.table("${counts_matrix}", header = TRUE, row.names = 1, sep = "\t", check.names = FALSE)
 
     # Convert character columns to numeric and replace any coercion NAs with 0

@@ -24,7 +24,16 @@ process HEATMAP_ANALYSIS {
 
     # 1. Read inputs
     norm_counts <- read.csv("${norm_counts_file}", row.names = 1, check.names = FALSE)
-    meta_df     <- read.table("${contrast_sheet}", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+    detect_sep <- function(filepath) {
+        first_line <- readLines(filepath, n = 1)
+        if (grepl(",", first_line)) return(",")
+        if (grepl("\t", first_line)) return("\t")
+        return(",")
+    }
+
+    contrast_sep <- detect_sep("${contrast_sheet}")
+    meta_df <- read.table("${contrast_sheet}", header = TRUE, sep = contrast_sep, stringsAsFactors = FALSE)
+
     results_dt  <- fread("${deseq2_results}")
 
     # Clean ENSEMBL IDs

@@ -2,7 +2,7 @@ process HEATMAP_TECOUNT {
     tag "heatmap_te_features"
     cpus 2
     memory '8 GB'
-    publishDir "${params.output}/heatmap_tecount", mode: 'copy'
+    publishDir "${params.output}/tecount_analysis", mode: 'copy'
 
     input:
     path norm_counts_file
@@ -22,7 +22,17 @@ process HEATMAP_TECOUNT {
     library(circlize)
 
     norm_counts <- read.csv("${norm_counts_file}", row.names = 1, check.names = FALSE)
-    meta_df     <- read.table("${contrast_sheet}", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+
+    detect_sep <- function(filepath) {
+        first_line <- readLines(filepath, n = 1)
+        if (grepl(",", first_line)) return(",")
+        if (grepl("\t", first_line)) return("\t")
+        return(",")
+    }
+    
+    contrast_sep <- detect_sep("${contrast_sheet}")
+    meta_df <- read.table("${contrast_sheet}", header = TRUE, sep = contrast_sep, stringsAsFactors = FALSE)
+
     results_dt  <- fread("${deseq2_results}")
 
     # Filter for significant TE features (padj < 0.05 & absolute log2FC > 1)
