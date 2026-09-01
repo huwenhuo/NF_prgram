@@ -5,7 +5,7 @@ process DOWNLOAD_FASTQ {
     memory '8 GB'
 
     input:
-    tuple val(meta), val(srr_id)
+    val meta
 
     output:
     tuple val(meta), path("${meta.gsm_id}*_?.fastq.gz", arity: '1..*')
@@ -13,17 +13,17 @@ process DOWNLOAD_FASTQ {
     script:
     """
     # 1. Prefetch the data 
-    prefetch ${srr_id}
+    prefetch ${meta.srr_id}
     
     # 2. Extract using fasterq-dump
-    fasterq-dump --split-3 --include-technical --threads ${task.cpus} ${srr_id}
+    fasterq-dump --split-3 --include-technical --threads ${task.cpus} ${meta.srr_id}
 
     # 3. Count how many fastq files were generated before renaming
-    file_count=\$(ls ${srr_id}*.fastq 2>/dev/null | wc -l)
+    file_count=\$(ls ${meta.srr_id}*.fastq 2>/dev/null | wc -l)
 
     # 4. Rename files from SRR ID to GSM ID
-    for file in ${srr_id}*.fastq; do
-        suffix=\${file#${srr_id}}
+    for file in ${meta.srr_id}*.fastq; do
+        suffix=\${file#${meta.srr_id}}
         mv "\$file" "${meta.gsm_id}\${suffix}"
     done
     

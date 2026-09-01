@@ -74,27 +74,24 @@ workflow {
         "FOUND: GSM = ${meta.gsm_id} -> SRR = ${srr.trim()}" 
     }
 
-    // Extract SRR ID and attach to meta map
-    ch_srr_meta = ch_srr_out.map { meta, srr ->
-        def updated_meta = meta.clone()
-        def clean_srr = srr.toString().trim()
-        updated_meta.srr_id = clean_srr
-        return [updated_meta, clean_srr]
-    }
-
-    // 3. Download FASTQ files using retrieved SRR IDs
-    ch_downloaded = DOWNLOAD_FASTQ(ch_srr_meta)
-        .map { meta, files ->
-            def file_list = files instanceof List ? files : [files]
+    // Attach SRR ID to meta map and pass single meta to DOWNLOAD_FASTQ
+    ch_downloaded = DOWNLOAD_FASTQ(
+        ch_srr_out.map { meta, srr ->
             def updated_meta = meta.clone()
-
-            updated_meta.r1   = file_list.find { it.name.contains('_1') } ?: file_list[0]
-            updated_meta.r2   = file_list.find { it.name.contains('_2') }
-            updated_meta.r3   = file_list.find { it.name.contains('_3') }
-            updated_meta.mode = updated_meta.r2 ? (updated_meta.r3 ? "PE_plus_R3" : "PE") : "SE"
-
+            updated_meta.srr_id = srr.toString().trim()
             return updated_meta
         }
+    ).map { meta, files ->
+        def file_list = files instanceof List ? files : [files]
+        def updated_meta = meta.clone()
+
+        updated_meta.r1   = file_list.find { it.name.contains('_1') } ?: file_list[0]
+        updated_meta.r2   = file_list.find { it.name.contains('_2') }
+        updated_meta.r3   = file_list.find { it.name.contains('_3') }
+        updated_meta.mode = updated_meta.r2 ? (updated_meta.r3 ? "PE_plus_R3" : "PE") : "SE"
+
+        return updated_meta
+    }
 
     // 4. Trimming
     ch_trimmed = TRIM_FASTQ(ch_downloaded)
