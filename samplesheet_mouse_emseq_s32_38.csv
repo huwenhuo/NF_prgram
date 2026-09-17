@@ -1,8 +1,8 @@
 sample_n,sample_name,species,sampleID,fastq_1,fastq_2,genotype
-32,Mouse Young1,Mouse,S62,,,Young
-33,Mouse Young2,Mouse,S63,,,Young
-34,Mouse Young3,Mouse,S64,,,Young
-35,Mouse Young4,Mouse,S65,,,Young
-36,Mouse Old1,Mouse,S66,,,Old
-37,Mouse Old2,Mouse,S67,,,Old
-38,Mouse Old3,Mouse,S68,,,Old
+32,Mouse_Young1,Mouse,S62,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0032_S62_L002_R1_001.fastq.gz,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0032_S62_L002_R2_001.fastq.gz,Young
+33,Mouse_Young2,Mouse,S63,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0033_S63_L002_R1_001.fastq.gz,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0033_S63_L002_R2_001.fastq.gz,Young
+34,Mouse_Young3,Mouse,S64,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0034_S64_L002_R1_001.fastq.gz,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0034_S64_L002_R2_001.fastq.gz,Young
+35,Mouse_Young4,Mouse,S65,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0035_S65_L002_R1_001.fastq.gz,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0035_S65_L002_R2_001.fastq.gz,Young
+36,Mouse_Old1,Mouse,S66,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0036_S66_L002_R1_001.fastq.gz,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0036_S66_L002_R2_001.fastq.gz,Old
+37,Mouse_Old2,Mouse,S67,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0037_S67_L002_R1_001.fastq.gz,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0037_S67_L002_R2_001.fastq.gz,Old
+38,Mouse_Old3,Mouse,S68,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0038_S68_L002_R1_001.fastq.gz,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0038_S68_L002_R2_001.fastq.gz,Old
