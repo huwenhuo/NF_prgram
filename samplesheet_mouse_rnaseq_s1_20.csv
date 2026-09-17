@@ -1,0 +1,21 @@
+sample_n,sample_name,species,sampleID,fastq_1,fastq_2,genotype,treatment,rep
+1,WT LSK 1,Mouse,S31,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0001_S31_L002_R1_001.fastq.gz,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0001_S31_L002_R2_001.fastq.gz,WT,control,1
+2,WT LSK 2,Mouse,S32,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0002_S32_L002_R1_001.fastq.gz,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0002_S32_L002_R2_001.fastq.gz,WT,control,2
+3,WT LSK 3,Mouse,S33,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0003_S33_L002_R1_001.fastq.gz,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0003_S33_L002_R2_001.fastq.gz,WT,control,3
+4,WT LSK 4,Mouse,S34,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0004_S34_L002_R1_001.fastq.gz,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0004_S34_L002_R2_001.fastq.gz,WT,control,4
+5,WT LSK 5,Mouse,S35,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0005_S35_L002_R1_001.fastq.gz,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0005_S35_L002_R2_001.fastq.gz,WT,control,5
+6,D3A LSK 1,Mouse,S36,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0006_S36_L002_R1_001.fastq.gz,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0006_S36_L002_R2_001.fastq.gz,D3A,control,1
+7,D3A LSK 2,Mouse,S37,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0007_S37_L002_R1_001.fastq.gz,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0007_S37_L002_R2_001.fastq.gz,D3A,control,2
+8,D3A LSK 3,Mouse,S38,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0008_S38_L002_R1_001.fastq.gz,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0008_S38_L002_R2_001.fastq.gz,D3A,control,3
+9,D3A LSK 4,Mouse,S39,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0009_S39_L002_R1_001.fastq.gz,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0009_S39_L002_R2_001.fastq.gz,D3A,control,4
+10,D3A LSK 5,Mouse,S40,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0010_S40_L002_R1_001.fastq.gz,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0010_S40_L002_R2_001.fastq.gz,D3A,control,5
+11,WT LSK IFNa 1,Mouse,S41,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0011_S41_L002_R1_001.fastq.gz,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0011_S41_L002_R2_001.fastq.gz,WT,IFNa,1
+12,WT LSK IFNa 2,Mouse,S42,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0012_S42_L002_R1_001.fastq.gz,/work/InternalMedicine/s184335/sc/workspace/sisi/fastq//L7761-0001-0012_S42_L002_R2_001.fastq.gz,WT,IFNa,2
+13,WT LSK IFNa 3,Mouse,S43,,,WT,IFNa,3
+14,WT LSK IFNa 4,Mouse,S44,,,WT,IFNa,4
+15,WT LSK IFNa 5,Mouse,S45,,,WT,IFNa,5
+16,D3A LSK IFNa 1,Mouse,S46,,,D3A,IFNa,1
+17,D3A LSK IFNa 2,Mouse,S47,,,D3A,IFNa,2
+18,D3A LSK IFNa 3,Mouse,S48,,,D3A,IFNa,3
+19,D3A LSK IFNa 4,Mouse,S49,,,D3A,IFNa,4
+20,D3A LSK IFNa 5,Mouse,S50,,,D3A,IFNa,5

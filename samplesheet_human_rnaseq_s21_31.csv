@@ -1,0 +1,12 @@
+sample_n,sample_name,species,sampleID,fastq_1,fastq_2,genotype
+21,Young MSC 5122,Mouse,S51,,,Young
+22,Young MSC 4091,Mouse,S52,,,Young
+23,Young MSC 1388,Mouse,S53,,,Young
+24,Young MSC 5114,Mouse,S54,,,Young
+25,Young MSC 7285,Mouse,S55,,,Young
+26,Young MSC 3093,Mouse,S56,,,Young
+27,Old HuMSC 2068,Human,S57,,,Old
+28,Old HuMSC 4470,Human,S58,,,Old
+29,Old HuMSC 3960,Human,S59,,,Old
+30,Old HuMSC 1857,Human,S60,,,Old
+31,Old HuMSC 4360,Human,S61,,,Old

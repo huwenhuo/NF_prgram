@@ -1,0 +1,8 @@
+sample_n,sample_name,species,sampleID,fastq_1,fastq_2,genotype
+32,Mouse Young1,Mouse,S62,,,Young
+33,Mouse Young2,Mouse,S63,,,Young
+34,Mouse Young3,Mouse,S64,,,Young
+35,Mouse Young4,Mouse,S65,,,Young
+36,Mouse Old1,Mouse,S66,,,Old
+37,Mouse Old2,Mouse,S67,,,Old
+38,Mouse Old3,Mouse,S68,,,Old
