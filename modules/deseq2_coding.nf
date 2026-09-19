@@ -35,6 +35,19 @@ process DESEQ2_CODING {
     meta_df <- read.table("${contrast_sheet}", header = TRUE, sep = meta_sep, stringsAsFactors = FALSE)
     print("--- Meta DF Loaded ---")
     print(head(meta_df))
+
+    # Define possible column names for sample identifiers in order of preference
+    possible_id_cols <- c("gsm_id", "sampleID", "sample_id", "sample_name", "sample", "run_accession")
+    id_col <- possible_id_cols[possible_id_cols %in% colnames(meta_df)][1]
+    
+    if (is.na(id_col)) {
+    stop("Error: None of the expected sample ID columns (gsm_id, sampleID, sample_id, sample_name, sample) were found in the metadata sheet. Columns available: ", paste(colnames(meta_df), collapse = ", "))
+    }
+    
+    print(paste("--- Using column '", id_col, "' as sample identifier ---", sep = ""))
+    
+    # Standardize the chosen column name to 'gsm_id' for the rest of your script
+    meta_df\$gsm_id <- meta_df[[id_col]]
     
     counts_sep <- detect_sep("${counts_matrix}")
     counts <- read.table("${counts_matrix}", header = TRUE, row.names = 1, sep = counts_sep, check.names = FALSE, stringsAsFactors = FALSE, fill = TRUE)

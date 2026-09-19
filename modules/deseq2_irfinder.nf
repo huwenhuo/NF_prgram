@@ -29,7 +29,20 @@ process DESEQ2_IRFINDER {
     }
     
     meta_sep <- detect_sep("${contrast_sheet}")
-    meta_df    <- read.table("${contrast_sheet}", header = TRUE, sep = meta_sep, stringsAsFactors = FALSE)
+    meta_df  <- read.table("${contrast_sheet}", header = TRUE, sep = meta_sep, stringsAsFactors = FALSE)
+
+    # Define possible column names for sample identifiers in order of preference
+    possible_id_cols <- c("gsm_id", "sampleID", "sample_id", "sample_name", "sample", "run_accession")
+    id_col <- possible_id_cols[possible_id_cols %in% colnames(meta_df)][1]
+    
+    if (is.na(id_col)) {
+    stop("Error: None of the expected sample ID columns (gsm_id, sampleID, sample_id, sample_name, sample) were found in the metadata sheet. Columns available: ", paste(colnames(meta_df), collapse = ", "))
+    }
+    
+    print(paste("--- Using column '", id_col, "' as sample identifier ---", sep = ""))
+    
+    # Standardize the chosen column name to 'gsm_id' for the rest of your script
+    meta_df\$gsm_id <- meta_df[[id_col]]
     
     intron_sep <- detect_sep("${intron_matrix}")
     intron_mat <- read.table("${intron_matrix}", header = TRUE, row.names = 1, sep = intron_sep, check.names = FALSE)

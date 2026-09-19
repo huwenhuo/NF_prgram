@@ -48,7 +48,20 @@ process DESEQ2_TECOUNT {
     str(counts)
     print(head(counts))
 
-    # Export full normalized matrix across valid samples
+    # Define possible column names for sample identifiers in order of preference
+    possible_id_cols <- c("gsm_id", "sampleID", "sample_id", "sample_name", "sample", "run_accession")
+    id_col <- possible_id_cols[possible_id_cols %in% colnames(meta_df)][1]
+    
+    if (is.na(id_col)) {
+    stop("Error: None of the expected sample ID columns (gsm_id, sampleID, sample_id, sample_name, sample) were found in the metadata sheet. Columns available: ", paste(colnames(meta_df), collapse = ", "))
+    }
+    
+    print(paste("--- Using column '", id_col, "' as sample identifier ---", sep = ""))
+    
+    # Standardize the chosen column name to 'gsm_id' for the rest of your script
+    meta_df\$gsm_id <- meta_df[[id_col]]
+
+    # Export full matrix across valid samples
     valid_all_samples <- intersect(meta_df\$gsm_id, colnames(counts))
     full_counts <- as.matrix(counts[, valid_all_samples, drop = FALSE])
     storage.mode(full_counts) <- "numeric"
@@ -57,7 +70,7 @@ process DESEQ2_TECOUNT {
     rownames(full_meta) <- full_meta\$gsm_id
 
     print("--- Counts before DESeq2 ---")
-    print(head(counts))
+    print(head(full_counts))
     print(head(full_meta))
 
     dds_full <- DESeqDataSetFromMatrix(countData = round(full_counts), colData = full_meta, design = ~ 1)

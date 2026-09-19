@@ -1,7 +1,7 @@
 process TELOCAL {
     tag { meta.gsm_id }
     cpus 1
-    memory '10 GB'
+    memory '40 GB'
 
     input:
     val meta
