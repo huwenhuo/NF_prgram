@@ -1,26 +1,42 @@
 process BISMARK {
     tag { meta.gsm_id }
-    cpus 8
-    memory 32.GB
+    cpus 4
+    memory 70.GB
     module 'bismark/0.24.1'
 
     input:
     val meta 
 
     output:
-    tuple val(meta), path("${meta.gsm_id}_bismark*.bam"), path("${meta.gsm_id}_bismark*.bai"), optional: true
+    tuple val(meta), path("${meta.gsm_id}_bismark.bam"), path("${meta.gsm_id}_bismark*.bai"), optional: true
     path "*.html"
+    path "*.bismark.cov.gz", optional: true
+    path "*.bedGraph.gz", optional: true
 
     script:
     def read_input = meta.trim_r2 ? "-1 ${meta.trim_r1} -2 ${meta.trim_r2}" : "${meta.trim_r1}"
+    def is_paired = meta.trim_r2 ? "--paired-end" : "--single-end"
     
     """
-    bismark \
-        --genome ${meta.bismark_index} \
-        --bowtie2 \
-        --multicore ${task.cpus} \
+    # 1. Alignment (using multicore without the forbidden --basename)
+    bismark \\
+        --genome ${meta.bismark_index} \\
+        --bowtie2 \\
+        --multicore ${task.cpus} \\
         ${read_input}
 
-    # Add sorting and indexing commands matching your output expectations here
+    # Normalize Bismark's default output name to match meta.gsm_id
+    mv *bismark_bt2*.bam ${meta.gsm_id}_bismark.bam
+
+    # 2. Extract methylation using the normalized BAM name
+    bismark_methylation_extractor \\
+        ${is_paired} \\
+        --bedGraph \\
+        --gzip \\
+        --multicore ${task.cpus} \\
+        ${meta.gsm_id}_bismark.bam
+
+    # 3. Generate HTML report
+    bismark2report
     """
 }
