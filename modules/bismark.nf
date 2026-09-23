@@ -8,10 +8,12 @@ process BISMARK {
     val meta 
 
     output:
-    tuple val(meta), path("${meta.gsm_id}_bismark.bam"), path("${meta.gsm_id}_bismark*.bai"), optional: true
-    path "*.html"
-    path "*.bismark.cov.gz", optional: true
-    path "*.bedGraph.gz", optional: true
+    tuple val(meta),
+      path("*.bismark.cov.gz"),
+      path("*.bedGraph.gz"),
+      path("*.html"),
+      path("*.txt"),
+      optional: true
 
     script:
     def read_input = meta.trim_r2 ? "-1 ${meta.trim_r1} -2 ${meta.trim_r2}" : "${meta.trim_r1}"
@@ -36,7 +38,10 @@ process BISMARK {
         --multicore ${task.cpus} \\
         ${meta.gsm_id}_bismark.bam
 
-    # 3. Generate HTML report
-    bismark2report
+    # 3. Generate HTML report for the sample
+    bismark2report \
+        --alignment_report *_report.txt \
+        --splitting_report *_splitting_report.txt
+
     """
 }
