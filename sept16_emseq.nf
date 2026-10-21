@@ -10,7 +10,7 @@ params.genome         = "mm10_sw"
 
 // Import modules
 include { TRIM_FASTQ } from './modules/trim_fastq'
-include { BISMARK    } from './modules/align_dna'       // Or update module name accordingly
+include { BISMARK    } from './modules/bismark'
 include { MULTIQC    } from './modules/multiqc'
 
 workflow {

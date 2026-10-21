@@ -5,7 +5,7 @@ nextflow.enable.dsl=2
 // ---- Parameters for Human RNA-Seq ----
 params.samplesheet    = "${projectDir}/samplesheet_human_rnaseq_s21_31.csv"
 params.contrast_sheet = "${projectDir}/samplesheet_human_rnaseq_s21_31.csv"
-params.output         = "results_hsa"
+params.output         = "results"
 params.genome         = "GRCh38_sw"
 
 // Import processes from modules in current working directory
@@ -41,38 +41,16 @@ include { VOLCANO_IRFINDER } from './modules/volcano_irfinder'
 
 include { MULTIQC } from './modules/multiqc'
 
-workflow {
+// ==========================================
+// WORKFLOW 1: Upstream Quantification & QC
+// ==========================================
+workflow QUANTIFICATION {
+    take:
+    ch_input_meta
 
-    // 1. Build initial meta map channel from human samplesheet
-    ch_input_meta = Channel
-        .fromPath(params.samplesheet)
-        .splitCsv(header: true, sep: ',')
-        .map { row ->
-            def meta = [:]
-            def genome_info    = params.genomes ? params.genomes[params.genome] : null
-            meta.gsm_id        = row.sampleID
-            meta.sample_name   = row.sample
-            meta.group1        = row.group       // Young vs Old groups
-            meta.group2        = null
-            meta.genotype      = row.genotype    // Young vs Old
-            meta.genome        = params.genome
-            meta.star_index    = genome_info ? genome_info.star_index : null
-            meta.bowtie2_index = genome_info ? genome_info.bowtie2_index : null
-            
-            def r1 = file(row.fastq_1)
-            def r2 = row.fastq_2 ? file(row.fastq_2) : null
-            meta.r1 = r1
-            meta.r2 = r2
-            meta.r3 = null
-            meta.mode = r2 ? "PE" : "SE"
-
-            return meta
-        }
-
-    // 2. Trimming
+    main:
     ch_trimmed = TRIM_FASTQ(ch_input_meta)
 
-    // 3. Update meta with trimmed file locations
     ch_aligned_input = ch_trimmed.map { meta, trimmed_files ->
         def updated_meta = meta.clone()
         def trim_list = trimmed_files instanceof List ? trimmed_files : [trimmed_files]
@@ -86,11 +64,9 @@ workflow {
         return updated_meta
     }
 
-    // 4. Alignments & Indexing
     ch_star_te_out = STAR_TEALIGNMENT(ch_aligned_input)
     ch_indexed_bam = SAMTOOLS_INDEX(ch_star_te_out.bam)
 
-    // 5. Run single sample steps
     ch_te_input = ch_indexed_bam.indexed_bam.map { meta, bam, bai ->
         def m = meta.clone()
         def selected_genome = params.genomes[meta.genome]
@@ -102,8 +78,9 @@ workflow {
         m.scTE_tx_idx = selected_genome.scTE_tx_idx
         return m
     }
-    ch_tecount_out = TECOUNT(ch_te_input)
-    ch_telocal_out = TELOCAL(ch_te_input)
+    
+    ch_tecount_out   = TECOUNT(ch_te_input)
+    ch_telocal_out   = TELOCAL(ch_te_input)
     ch_scte_out      = SC_TE(ch_te_input)
     ch_sctelocal_out = SC_TELOCAL(ch_te_input)
 
@@ -123,52 +100,15 @@ workflow {
     }
     ch_irfinder_out = IRFINDER_FASTQ(ch_irfinder_input)
 
-    // 6. TECOUNT downstream analysis
     ch_all_counts = ch_tecount_out.map { meta, count_file -> count_file }.collect()
     ch_merged_matrix = MERGE_TECOUNTS(ch_all_counts)
-    ch_fixed_samplesheet = Channel.fromPath(params.contrast_sheet)
 
-    DESEQ2_TECOUNT(ch_merged_matrix.matrix, ch_fixed_samplesheet)
-    ch_te_results_flat = DESEQ2_TECOUNT.out.results.flatten()
-    
-    ch_te_volcano_input = ch_te_results_flat.map { file ->
-        def name = file.name.replaceAll("_deseq2_results\\.csv", "")
-        return tuple(name, file)
-    }
-    VOLCANO_TECOUNT(ch_te_volcano_input)
-    HEATMAP_TECOUNT(DESEQ2_TECOUNT.out.normalized_counts, ch_fixed_samplesheet, DESEQ2_TECOUNT.out.combined_results)
-
-    // 7. Coding gene analysis
-    DESEQ2_CODING(ch_merged_matrix.matrix, ch_fixed_samplesheet)
-    ch_coding_results_flat = DESEQ2_CODING.out.results.flatten()
-    
-    ch_volcano_input = ch_coding_results_flat.map { file ->
-        def name = file.name.replaceAll("_coding_deseq2_results\\.csv", "")
-        return tuple(name, file)
-    }
-    VOLCANO_PLOT(ch_volcano_input)
-    PATHWAY_ANALYSIS(ch_coding_results_flat)
-    HEATMAP_ANALYSIS(DESEQ2_CODING.out.normalized_counts, ch_fixed_samplesheet, DESEQ2_CODING.out.combined_results)
-
-    // 8. TELOCAL analysis
     ch_all_telocal_counts = ch_telocal_out.map { meta, count_file -> count_file }.collect()
     ch_merged_telocal_matrix = MERGE_TELOCAL(ch_all_telocal_counts)
-    EDGER_TELOCAL(ch_merged_telocal_matrix.matrix, ch_fixed_samplesheet)
 
-    // 9. IRFinder analysis
     ch_all_ir_dirs = ch_irfinder_out.ir_dir.collect()
     ch_merged_ir = MERGE_IRFINDER(ch_all_ir_dirs)
-    DESEQ2_IRFINDER(ch_merged_ir.intron_matrix, ch_merged_ir.splice_matrix, ch_fixed_samplesheet)
-    HEATMAP_IRFINDER(DESEQ2_IRFINDER.out.ratio_matrix, ch_fixed_samplesheet, DESEQ2_IRFINDER.out.combined_results)
 
-    ch_ir_results_flat = DESEQ2_IRFINDER.out.results.flatten()
-    ch_ir_volcano_input = ch_ir_results_flat.map { file ->
-        def name = file.name.replaceAll("_irfinder_deseq2_results\\.csv", "")
-        return tuple(name, file)
-    }
-    VOLCANO_IRFINDER(ch_ir_volcano_input)
-
-    // 10. MultiQC
     ch_trim_qc = ch_trimmed.map { meta, files -> 
         (files instanceof List ? files : [files]).collect { it.getParent() }
     }.flatten()
@@ -177,4 +117,121 @@ workflow {
 
     ch_multiqc_inputs = ch_trim_qc.mix(ch_star_qc).unique().collect()
     MULTIQC(ch_multiqc_inputs)
+
+    emit:
+    tecount_matrix = ch_merged_matrix.matrix
+    telocal_matrix = ch_merged_telocal_matrix.matrix
+    intron_matrix  = ch_merged_ir.intron_matrix
+    splice_matrix  = ch_merged_ir.splice_matrix
+
+    done = ch_merged_matrix.matrix
+        .combine(ch_merged_telocal_matrix.matrix)
+        .combine(ch_merged_ir.intron_matrix)
+
+}
+
+// ==========================================
+// WORKFLOW 2: Downstream Statistical Analysis
+// ==========================================
+// ==========================================
+// WORKFLOW 2: Downstream Statistical Analysis
+// ==========================================
+workflow DOWNSTREAM_ANALYSIS {
+    take:
+    sync_barrier     // <--- Added barrier dependency
+    tecount_matrix
+    telocal_matrix
+    intron_matrix
+    splice_matrix
+    contrast_sheet
+
+    main:
+    // Force matrices to wait for the sync barrier using .combine()
+    ch_tecount_sync  = tecount_matrix.combine(sync_barrier).map { matrix, barrier -> matrix }
+    ch_telocal_sync  = telocal_matrix.combine(sync_barrier).map { matrix, barrier -> matrix }
+    ch_intron_sync   = intron_matrix.combine(sync_barrier).map { matrix, barrier -> matrix }
+    ch_splice_sync   = splice_matrix.combine(sync_barrier).map { matrix, barrier -> matrix }
+
+    ch_fixed_samplesheet = Channel.fromPath(contrast_sheet)
+
+    // 1. TECOUNT downstream analysis (using synced matrix)
+    DESEQ2_TECOUNT(ch_tecount_sync, ch_fixed_samplesheet)
+    ch_te_results_flat = DESEQ2_TECOUNT.out.results.flatten()
+    ch_te_volcano_input = ch_te_results_flat.map { file ->
+        def name = file.name.replaceAll("_deseq2_results\\.csv", "")
+        return tuple(name, file)
+    }
+    VOLCANO_TECOUNT(ch_te_volcano_input)
+    HEATMAP_TECOUNT(DESEQ2_TECOUNT.out.normalized_counts, ch_fixed_samplesheet, DESEQ2_TECOUNT.out.combined_results)
+
+    // 2. Coding gene analysis (using synced matrix)
+    DESEQ2_CODING(ch_tecount_sync, ch_fixed_samplesheet)
+    ch_coding_results_flat = DESEQ2_CODING.out.results.flatten()
+    ch_volcano_input = ch_coding_results_flat.map { file ->
+        def name = file.name.replaceAll("_coding_deseq2_results\\.csv", "")
+        return tuple(name, file)
+    }
+    VOLCANO_PLOT(ch_volcano_input)
+    PATHWAY_ANALYSIS(ch_coding_results_flat)
+    HEATMAP_ANALYSIS(DESEQ2_CODING.out.normalized_counts, ch_fixed_samplesheet, DESEQ2_CODING.out.combined_results)
+
+    // 3. TELOCAL analysis (using synced matrix)
+    EDGER_TELOCAL(ch_telocal_sync, ch_fixed_samplesheet)
+
+    // 4. IRFinder analysis (using synced matrices)
+    DESEQ2_IRFINDER(ch_intron_sync, ch_splice_sync, ch_fixed_samplesheet)
+    HEATMAP_IRFINDER(DESEQ2_IRFINDER.out.ratio_matrix, ch_fixed_samplesheet, DESEQ2_IRFINDER.out.combined_results)
+
+    ch_ir_results_flat = DESEQ2_IRFINDER.out.results.flatten()
+    ch_ir_volcano_input = ch_ir_results_flat.map { file ->
+        def name = file.name.replaceAll("_irfinder_deseq2_results\\.csv", "")
+        return tuple(name, file)
+    }
+    VOLCANO_IRFINDER(ch_ir_volcano_input)
+}
+
+// ==========================================
+// DEFAULT ENTRY WORKFLOW (Chains Both)
+// ==========================================
+// ==========================================
+// DEFAULT ENTRY WORKFLOW (Chains Both)
+// ==========================================
+workflow {
+    ch_input_meta = Channel
+        .fromPath(params.samplesheet)
+        .splitCsv(header: true, sep: ',')
+        .map { row ->
+            def meta = [:]
+            def genome_info    = params.genomes ? params.genomes[params.genome] : null
+            meta.gsm_id        = row.sampleID
+            meta.sample_name   = row.sample_name
+            meta.group1        = row.group
+            meta.group2        = null
+            meta.genotype      = row.genotype
+            meta.genome        = params.genome
+            meta.star_index    = genome_info ? genome_info.star_index : null
+            meta.bowtie2_index = genome_info ? genome_info.bowtie2_index : null
+            
+            def r1 = file(row.fastq_1)
+            def r2 = row.fastq_2 ? file(row.fastq_2) : null
+            meta.r1 = r1
+            meta.r2 = r2
+            meta.r3 = null
+            meta.mode = r2 ? "PE" : "SE"
+
+            return meta
+        }
+
+    // Run Quantification first
+    quant_results = QUANTIFICATION(ch_input_meta)
+
+    // Pass the completion barrier and finalized matrices into Downstream Analysis
+    //DOWNSTREAM_ANALYSIS(
+    //    quant_results.done,
+    //    quant_results.tecount_matrix,
+    //    quant_results.telocal_matrix,
+    //    quant_results.intron_matrix,
+    //    quant_results.splice_matrix,
+    //    params.contrast_sheet
+    //)
 }

@@ -5,6 +5,7 @@ nextflow run /work/InternalMedicine/s184335/sc/repos/NF_prgram/gse150984.nf \
     -c /work/InternalMedicine/s184335/sc/repos/NF_prgram/nextflow.config \
     -w /work/InternalMedicine/s184335/sc/workspace/sisi/gse150984/work \
     --genome GRCh38_sw \
+    --contrast_sheet gse150984_contrastsheet.tsv \
     --samplesheet /work/InternalMedicine/s184335/sc/repos/NF_prgram/gse150984_samplesheet.tsv \
-    --output /work/InternalMedicine/s184335/sc/workspace/sisi/gse150984/work 
+    --output /work/InternalMedicine/s184335/sc/workspace/sisi/gse150984/results
 
